@@ -55,6 +55,7 @@ class ComputeBundle:
     legacy_daily: LegacyDaily
     legacy: LegacyResult
     cdi: Sequence[tuple[date, float]]
+    cdi_last_observed: date | None  # última observação real (antes do preenchimento da Q18)
     ipca: dict[tuple[int, int], float]
     selic: dict[tuple[int, int], float]
     releases: Sequence[IpcaRelease]
@@ -223,7 +224,7 @@ def _realized(b: ComputeBundle) -> RealizedOut:
             end_exclusive=b.as_of,
             business_days=len(cdi_days),
             factor=ci.cdi_realized_factor,
-            last_observation=max(cdi_days) if cdi_days else None,
+            last_observation=b.cdi_last_observed,
         ),
         selic_monthly_legacy=[
             MonthlyValue(year=year, month=m, value_pct=b.selic[(year, m)])

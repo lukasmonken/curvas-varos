@@ -28,8 +28,20 @@ def block(day: str, base: float = 50.0, skip: str | None = None) -> str:
     return "".join(lines)
 
 
-def test_arquivo_do_projeto() -> None:
-    snap = load_cds(date(2026, 9, 29), retrieved_at=NOW, path=ROOT / "data/manual/cds.csv")
+FIXTURE = ROOT / "tests" / "fixtures" / "f4" / "cds_manual.csv"
+
+
+def test_arquivo_de_producao_e_valido() -> None:
+    """data/manual/cds.csv muda todo dia; aqui só se exige que continue válido."""
+    path = ROOT / "data" / "manual" / "cds.csv"
+    text = path.read_text(encoding="utf-8").splitlines(True)
+    quotes = parse_manual_cds(text, load_anbima_calendar())
+    latest = max(q.reference_date for q in quotes)
+    assert not cds_snapshot(quotes, latest).stale
+
+
+def test_arquivo_congelado() -> None:
+    snap = load_cds(date(2026, 9, 29), retrieved_at=NOW, path=FIXTURE)
     assert snap.reference_date == date(2026, 9, 29)
     assert not snap.stale
     assert snap.bps[0] == 45.67
@@ -136,7 +148,7 @@ VALUES = [45.0, 55.0, 68.0, 87.0, 110.0, 131.0, 172.0, 213.0, 246.0]
 
 def test_cds_add_acrescenta_e_valida(tmp_path: Path) -> None:
     target = tmp_path / "cds.csv"
-    target.write_text((ROOT / "data/manual/cds.csv").read_text())
+    target.write_text(FIXTURE.read_text())
     when = datetime(2026, 10, 1, 19, 0, tzinfo=UTC)
     assert append_cds(target, date(2026, 10, 1), VALUES, filled_by="fulano", filled_at=when) == 9
     snap = load_cds(date(2026, 10, 1), path=target)
@@ -147,7 +159,7 @@ def test_cds_add_acrescenta_e_valida(tmp_path: Path) -> None:
 
 def test_cds_add_nao_grava_nada_se_invalido(tmp_path: Path) -> None:
     target = tmp_path / "cds.csv"
-    original = (ROOT / "data/manual/cds.csv").read_text()
+    original = FIXTURE.read_text()
     target.write_text(original)
     when = datetime(2026, 10, 3, 19, 0, tzinfo=UTC)
     with pytest.raises(ManualCdsError, match="dia útil"):  # 03/10/2026 é sábado

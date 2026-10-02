@@ -1,6 +1,7 @@
 """Configuração central: URLs, timeouts, retry, faixas plausíveis e limites de alerta."""
 
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +36,7 @@ class SgsSeries:
     selic_daily: int = 11  # % a.d.
     selic_monthly: int = 4390  # % no mês, realizado do LEGADO (Dashboard!L20:L31)
     ipca_monthly: int = 433  # % no mês
+    ipca15_monthly: int = 7478  # % no mês (Forma A do IPCA-15, Q13)
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,9 @@ class AlertConfig:
 
 @dataclass(frozen=True)
 class Config:
+    # Primeiro t0 do pipeline (o CDS manual começa em 29/09/2026): o modo de
+    # recuperação não tenta datas anteriores, que nunca teriam CDS.
+    pipeline_start: date | None = date(2026, 9, 29)
     http: HttpConfig = field(default_factory=HttpConfig)
     urls: Urls = field(default_factory=Urls)
     sgs: SgsSeries = field(default_factory=SgsSeries)

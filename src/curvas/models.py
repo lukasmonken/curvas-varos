@@ -23,8 +23,13 @@ class SourceRecord(_Model):
 
     source: str
     requested_date: date = Field(description="Data pedida à fonte")
-    source_date: date | None = Field(description="Data econômica do dado")
-    publication_date: datetime | date | None = Field(description="Quando a fonte publicou")
+    source_date: date | None = Field(description="Data econômica do dado (nunca posterior a t0)")
+    publication_date: datetime | date | None = Field(
+        description=(
+            "Quando a fonte publicou o dado usado; null quando a fonte não informa "
+            "(ANBIMA, SGS 12 e 4390, agenda do IBGE)"
+        )
+    )
     retrieved_at: datetime = Field(description="Quando o pipeline baixou")
     stale: bool = False
     fallback_reason: str | None = None
@@ -70,11 +75,21 @@ class CurveOut(_Model):
 
 class AnnualRow(_Model):
     year: int
-    di: float | None
+    di: float | None = Field(description="Taxa do ano civil (no LEGADO, a do Dashboard)")
     inflation: float | None
-    cds: float | None
+    cds: float | None = Field(
+        description=(
+            "Taxa ao ano. No ano corrente do CORRIGIDO é ``annualized_rate``: a taxa "
+            "anualizada só dos dias úteis restantes até 31/12 (E8.7)."
+        )
+    )
     real: float | None = Field(description="(1 + DI)/(1 + Inflação) − 1 (E8.8)")
-    discount: float | None = Field(description="(1 + DI)(1 + CDS) − 1 (Q4)")
+    discount: float | None = Field(
+        description=(
+            "(1 + DI)(1 + CDS) − 1 (Q4). No ano corrente compõe o DI do ano civil com o "
+            "CDS anualizado do período restante."
+        )
+    )
 
 
 class CdsCurrentYear(_Model):
@@ -84,11 +99,17 @@ class CdsCurrentYear(_Model):
 
 
 class LegacyYtg(_Model):
-    """Coluna "YTG" do Dashboard (Q4:Q6), no LEGADO diário."""
+    """Coluna "YTG" do Dashboard (Q4:Q6), no LEGADO diário. Acumulados, não anualizados."""
 
-    di: float | None
-    inflation: float | None
-    cds: float | None
+    di: float | None = Field(
+        description="DI!S26: acumulado do início do trimestre q até 31/12, com o realizado de q"
+    )
+    inflation: float | None = Field(
+        description="Inflação!E4 (= S26): acumulado do início do trimestre q até 31/12"
+    )
+    cds: float | None = Field(
+        description="CDS!J9: acumulado só da curva no YTG, sem anualizar (E6.7)"
+    )
 
 
 class AnnualOut(_Model):

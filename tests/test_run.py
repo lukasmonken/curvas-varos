@@ -37,6 +37,9 @@ SGS_FILES = {
     "7478": FIX / "f2" / "bcb_sgs_7478_ipca15_mensal.json",
 }
 IBGE = FIX / "f2" / "ibge_calendario_2026.json"
+# Cópia congelada do CDS manual: o arquivo de produção muda todo dia (data/manual/cds.csv).
+CDS_FIXTURE = FIX / "f4" / "cds_manual.csv"
+NO_START = dataclasses.replace(DEFAULT, pipeline_start=None)
 COMMIT = "0" * 40
 
 
@@ -71,7 +74,7 @@ def client(overrides: dict[str, bytes] | None = None) -> httpx.Client:
 
 
 def paths(tmp: Path, name: str = "out") -> Paths:
-    return Paths(raw_root=tmp / "raw", out_root=tmp / name, manual_cds=ROOT / "data/manual/cds.csv")
+    return Paths(raw_root=tmp / "raw", out_root=tmp / name, manual_cds=CDS_FIXTURE)
 
 
 def go(tmp: Path, as_of: date, **kw: Any) -> RunOutput:
@@ -319,7 +322,7 @@ class TestRecuperacao:
         cal = load_anbima_calendar()
         p = paths(tmp_path)
         # Sem saída gravada: a janela inteira de 5 dias úteis (07/09 é feriado).
-        assert pending_dates(date(2026, 9, 11), p, cal) == [
+        assert pending_dates(date(2026, 9, 11), p, cal, None) == [
             date(2026, 9, 4),
             date(2026, 9, 8),
             date(2026, 9, 9),
@@ -327,11 +330,10 @@ class TestRecuperacao:
             date(2026, 9, 11),
         ]
         go(tmp_path, T0)
-        assert pending_dates(date(2026, 10, 3), p, cal) == [
-            date(2026, 9, 30),
-            date(2026, 10, 1),
-            date(2026, 10, 2),
-        ]
+        window = [date(2026, 9, 30), date(2026, 10, 1), date(2026, 10, 2)]
+        assert pending_dates(date(2026, 10, 3), p, cal, T0) == window
+        # Sem data de início, o 28/09 (sem saída) também fica pendente: buracos não somem.
+        assert pending_dates(date(2026, 10, 3), p, cal, None) == [date(2026, 9, 28), *window]
 
     def test_dia_sem_ettj_fica_pendente_e_depois_sai(self, tmp_path: Path) -> None:
         go(tmp_path, T0)
@@ -355,7 +357,11 @@ class TestRecuperacao:
 
     def test_dia_bloqueado_nao_impede_os_outros(self, tmp_path: Path) -> None:
         res = catch_up(
-            today=date(2026, 9, 29), client=client(), paths=paths(tmp_path), git_commit=COMMIT
+            today=date(2026, 9, 29),
+            client=client(),
+            paths=paths(tmp_path),
+            git_commit=COMMIT,
+            cfg=NO_START,
         )
         # Sem CDS manual antes de 29/09: 23 a 28/09 bloqueiam; 29/09 sai.
         assert [r.as_of for r in res.published] == [T0]
@@ -394,3 +400,110 @@ def test_bcb_html_com_status_200_e_repetido() -> None:
     )
     with pytest.raises(FetchError, match="conteúdo inesperado"):
         fetch_sgs(always_html, 12, date(2026, 1, 1), T0, as_of=T0, sleep=lambda _s: None)
+
+
+class TestRevisaoF4:
+    """Achados da revisão adversarial da F4."""
+
+    def test_falha_da_anbima_em_dia_passado_bloqueia_com_a_causa(self, tmp_path: Path) -> None:
+        def broken(request: httpx.Request) -> httpx.Response:
+            if "anbima" in str(request.url):
+                return httpx.Response(503)
+            return handler()(request)
+
+        go(tmp_path, T0)  # 29/09 gravado: há bruto antigo para o fallback
+        cfg = dataclasses.replace(DEFAULT, http=dataclasses.replace(DEFAULT.http, max_attempts=1))
+        res = catch_up(
+            today=date(2026, 9, 30),
+            client=httpx.Client(transport=httpx.MockTransport(broken)),
+            paths=paths(tmp_path),
+            cfg=cfg,
+            git_commit=COMMIT,
+        )
+        assert res.not_ready == []
+        assert [d for d, _ in res.blocked] == [date(2026, 9, 30)]
+        assert "HTTP 503" in res.blocked[0][1]
+
+    def test_dia_passado_vazio_tambem_e_erro(self, tmp_path: Path) -> None:
+        go(tmp_path, T0)
+        res = catch_up(
+            today=date(2026, 10, 1),
+            client=client({"anbima:2026-09-30": b"", "anbima:2026-10-01": b""}),
+            paths=paths(tmp_path),
+            git_commit=COMMIT,
+        )
+        assert [d for d, _ in res.blocked] == [date(2026, 9, 30)]
+        assert [d for d, _ in res.not_ready] == [date(2026, 10, 1)]  # hoje: ainda não saiu
+
+    def test_saida_com_ettj_defasada_e_refeita(self, tmp_path: Path) -> None:
+        go(tmp_path, T0)
+        stale = go(tmp_path, date(2026, 9, 30), client=client({"anbima:2026-09-30": b""}))
+        assert next(s for s in stale.sources if s.source == "anbima_ettj").stale
+        cal = load_anbima_calendar()
+        assert date(2026, 9, 30) in pending_dates(date(2026, 9, 30), paths(tmp_path), cal, T0)
+        res = catch_up(
+            today=date(2026, 9, 30), client=client(), paths=paths(tmp_path), git_commit=COMMIT
+        )
+        assert [r.as_of for r in res.published] == [date(2026, 9, 30)]
+        fresh = res.published[0].output
+        assert fresh is not None
+        assert not next(s for s in fresh.sources if s.source == "anbima_ettj").stale
+
+    def test_data_futura_bloqueia(self, tmp_path: Path) -> None:
+        with pytest.raises(BlockingError, match="futuro"):
+            run(
+                as_of=date(2026, 10, 2),
+                today=date(2026, 10, 1),
+                paths=paths(tmp_path),
+                client=client(),
+            )
+
+    def test_agenda_do_ibge_cobre_o_ano_seguinte(self, tmp_path: Path) -> None:
+        seen: list[str] = []
+
+        def spy(request: httpx.Request) -> httpx.Response:
+            seen.append(str(request.url))
+            return handler()(request)
+
+        go(tmp_path, T0, client=httpx.Client(transport=httpx.MockTransport(spy)))
+        assert "ate=12-31-2027" in next(u for u in seen if "ibge" in u)
+
+    def test_sgs_fora_da_faixa_nao_entra(self, tmp_path: Path) -> None:
+        rows = json.loads(SGS_FILES["12"].read_text())
+        rows[100]["valor"] = "13.65"  # taxa anual no lugar da diária
+        with pytest.raises(BlockingError, match="fora da faixa"):
+            go(tmp_path, T0, client=client({"sgs:12": json.dumps(rows).encode()}))
+
+    def test_datas_das_fontes(self, tmp_path: Path) -> None:
+        out = go(tmp_path, T0)
+        by = {s.source: s for s in out.sources}
+        assert by["bcb_sgs_433"].publication_date == date(2026, 9, 11)  # IPCA de agosto
+        for s in out.sources:
+            if s.source_date is not None:
+                assert s.source_date <= T0  # o 4390 traz outubro parcial no bruto
+
+    def test_cdi_preenchido_fica_defasado(self, tmp_path: Path) -> None:
+        rows = json.loads(SGS_FILES["12"].read_text())[:-2]  # sem 28 e 29/09
+        out = go(tmp_path, T0, client=client({"sgs:12": json.dumps(rows).encode()}))
+        cdi = next(s for s in out.sources if s.source == "bcb_sgs_12")
+        assert cdi.stale
+        assert cdi.fallback_reason is not None
+        assert out.realized.cdi.last_observation == date(2026, 9, 25)
+
+    def test_zip_e_pasta_solta_juntos(self, tmp_path: Path) -> None:
+        root = tmp_path / "raw"
+        day = date(2026, 5, 4)
+        kw: dict[str, Any] = {"url": "u", "requested_date": day, "root": root}
+        store_raw(
+            day, "a.csv", b"anbima", source="anbima_ettj", retrieved_at=datetime(2026, 5, 4), **kw
+        )
+        compact_old_months(date(2026, 9, 1), root)
+        store_raw(
+            day, "b.json", b"sgs", source="bcb_sgs_12", retrieved_at=datetime(2026, 9, 2), **kw
+        )
+        anbima = read_raw(day, "anbima_ettj", root)
+        sgs = read_raw(day, "bcb_sgs_12", root)
+        assert anbima is not None
+        assert anbima.content == b"anbima"
+        assert sgs is not None
+        assert sgs.content == b"sgs"

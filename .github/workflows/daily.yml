@@ -29,7 +29,8 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Cada requisição pode levar ~4 min no pior caso (timeouts + retries), por fonte e por dia.
+    timeout-minutes: 90
     permissions:
       contents: write
     outputs:
@@ -105,7 +106,8 @@ jobs:
 
   deploy:
     needs: pipeline
-    if: needs.pipeline.outputs.published == 'true'
+    # Publica os dias que saíram mesmo se outro dia da mesma execução bloqueou.
+    if: ${{ !cancelled() && needs.pipeline.outputs.published == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       pages: write

@@ -40,8 +40,9 @@ A ordem é 6M 1A 2A 3A 4A 5A 7A 10A 20A, em bps. Sem `--valores`, o comando perg
 
 - O Brasil não tem horário de verão desde 2019 (Decreto 9.772/2019), então BRT = UTC−3 o ano todo.
 - Os minutos "quebrados" evitam o pico do início da hora.
-- As duas execuções rodam `--catch-up`: processam todo dia útil ANBIMA pendente dentro da janela de 5 dias úteis que a página pública da ANBIMA guarda.
-- Dia sem ETTJ publicada fica para a próxima execução; nunca sai como dado defasado.
+- As duas execuções rodam `--catch-up`. Elas processam todo dia útil ANBIMA da janela de 5 dias úteis que a página pública guarda, a partir de 29/09/2026 (início do pipeline), que ainda não tenha saída ou cuja saída tenha usado a ETTJ de outro dia.
+- **ETTJ de hoje ainda não publicada:** o dia fica pendente, sem erro, e a próxima execução tenta de novo.
+- **Qualquer outra falha da ANBIMA** (fora do ar, layout novo, dado reprovado na validação, dia passado sem ETTJ): erro visível, workflow vermelho e a causa no log. Assim nenhum dia sai da janela em silêncio.
 - Em dia não útil não há nada pendente, e o workflow termina sem publicar.
 
 ### Sequência (`.github/workflows/daily.yml`)
@@ -54,7 +55,9 @@ A ordem é 6M 1A 2A 3A 4A 5A 7A 10A 20A, em bps. Sem `--valores`, o comando perg
 6. build do site
 7. deploy no GitHub Pages
 
-Um dia bloqueado (schema inválido, NaN, fator inválido, fonte sem nenhum dado válido) faz o workflow falhar, sem impedir os outros dias.
+Um dia bloqueado (schema inválido, NaN, fator inválido, fonte sem nenhum dado válido, série fora da faixa plausível) faz o workflow falhar. Mesmo assim, os outros dias são publicados.
+
+Reprodutibilidade (16.7): mesmos t0, brutos, configuração e CDS manual dão o mesmo JSON. A única exceção são os alertas de variação diária, que comparam com a saída do dia útil anterior, se ela existir.
 
 Execução manual: aba Actions → **daily** → *Run workflow*. O campo `as_of` vazio faz a recuperação; com uma data, roda só aquela data-base.
 
@@ -72,4 +75,5 @@ Nenhum segredo é necessário. As fontes são públicas, e o commit e o deploy u
 
 - **Inatividade:** em repositório público, o GitHub desativa workflows agendados depois de 60 dias sem atividade no repositório, e não está documentado se os commits do bot contam. Se o workflow for desativado, reative-o na aba Actions.
 - **ANBIMA:** a página das curvas avisa que a aba será desligada e que as curvas ficarão só no ANBIMA Data (Q19). Se o download parar, o pipeline usa o último dado válido com alerta e os testes do coletor continuam passando com as respostas gravadas. O coletor terá de ser trocado.
+- **CDS no site público (Q17):** com o Pages ligado, o `latest.json` e o site passam a exibir o CDS copiado do Investing.com, o que os termos dele vedam sem permissão. Resolver a Q17 (parecer jurídico ou autorização, Q16) antes de ligar o Pages.
 - **Planilha legada:** é interna e fica fora do repositório (`docs/legado/*.xlsx` no `.gitignore`). Os testes que dependem dela são pulados quando ela não existe.

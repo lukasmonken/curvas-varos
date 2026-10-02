@@ -90,6 +90,7 @@
        "type": "null"
       }
      ],
+     "description": "Taxa do ano civil (no LEGADO, a do Dashboard)",
      "title": "Di"
     },
     "inflation": {
@@ -112,6 +113,7 @@
        "type": "null"
       }
      ],
+     "description": "Taxa ao ano. No ano corrente do CORRIGIDO é ``annualized_rate``: a taxa anualizada só dos dias úteis restantes até 31/12 (E8.7).",
      "title": "Cds"
     },
     "real": {
@@ -135,7 +137,7 @@
        "type": "null"
       }
      ],
-     "description": "(1 + DI)(1 + CDS) − 1 (Q4)",
+     "description": "(1 + DI)(1 + CDS) − 1 (Q4). No ano corrente compõe o DI do ano civil com o CDS anualizado do período restante.",
      "title": "Discount"
     }
    },
@@ -512,7 +514,7 @@
   },
   "LegacyYtg": {
    "additionalProperties": false,
-   "description": "Coluna \"YTG\" do Dashboard (Q4:Q6), no LEGADO diário.",
+   "description": "Coluna \"YTG\" do Dashboard (Q4:Q6), no LEGADO diário. Acumulados, não anualizados.",
    "properties": {
     "di": {
      "anyOf": [
@@ -523,6 +525,7 @@
        "type": "null"
       }
      ],
+     "description": "DI!S26: acumulado do início do trimestre q até 31/12, com o realizado de q",
      "title": "Di"
     },
     "inflation": {
@@ -534,6 +537,7 @@
        "type": "null"
       }
      ],
+     "description": "Inflação!E4 (= S26): acumulado do início do trimestre q até 31/12",
      "title": "Inflation"
     },
     "cds": {
@@ -545,6 +549,7 @@
        "type": "null"
       }
      ],
+     "description": "CDS!J9: acumulado só da curva no YTG, sem anualizar (E6.7)",
      "title": "Cds"
     }
    },
@@ -720,7 +725,7 @@
        "type": "null"
       }
      ],
-     "description": "Data econômica do dado",
+     "description": "Data econômica do dado (nunca posterior a t0)",
      "title": "Source Date"
     },
     "publication_date": {
@@ -737,7 +742,7 @@
        "type": "null"
       }
      ],
-     "description": "Quando a fonte publicou",
+     "description": "Quando a fonte publicou o dado usado; null quando a fonte não informa (ANBIMA, SGS 12 e 4390, agenda do IBGE)",
      "title": "Publication Date"
     },
     "retrieved_at": {

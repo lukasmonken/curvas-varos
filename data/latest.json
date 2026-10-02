@@ -2,7 +2,7 @@
  "metadata": {
   "as_of_date": "2026-10-01",
   "code_version": "0.1.0",
-  "git_commit": "2cb4148a6258836887aee16cf3e1ab5cabe66fdf",
+  "git_commit": "d4f5cfe46726be69af901ca06a665200e8476c02",
   "schema_version": "1.0",
   "default_mode": "corrected"
  },
@@ -35,7 +35,7 @@
    "source": "bcb_sgs_433",
    "requested_date": "2026-10-01",
    "source_date": "2026-08-01",
-   "publication_date": null,
+   "publication_date": "2026-09-11",
    "retrieved_at": "2026-10-02T15:25:26Z",
    "stale": false,
    "fallback_reason": null,

@@ -3,8 +3,10 @@ name: tests
 
 on:
   push:
-    paths-ignore:
-      - "data/**"  # commits de dados do workflow diário
+    paths-ignore:  # commits de dados do workflow diário (o CDS manual continua testado)
+      - "data/curves/**"
+      - "data/raw/**"
+      - "data/latest.json"
   pull_request:
 
 permissions:

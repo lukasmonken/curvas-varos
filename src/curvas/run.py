@@ -109,6 +109,8 @@ class Collected:
     content: bytes
     record: SourceRecord
     alerts: list[Alert] = field(default_factory=list)
+    failure: str | None = None  # causa real quando caiu no fallback
+    not_published: bool = False  # a fonte respondeu "ainda não publicado" (corpo vazio)
 
 
 _SOURCE_ERRORS = (
@@ -122,8 +124,9 @@ _SOURCE_ERRORS = (
 )
 
 
-def _record(spec: SourceSpec, raw: RawEntry, as_of: date, *, stale: bool, reason: str | None,
-            raw_root: Path) -> SourceRecord:  # fmt: skip
+def _record(
+    spec: SourceSpec, raw: RawEntry, as_of: date, *, stale: bool, reason: str | None
+) -> SourceRecord:
     entry = raw.entry
     return SourceRecord(
         source=spec.source,
@@ -142,6 +145,7 @@ def _record(spec: SourceSpec, raw: RawEntry, as_of: date, *, stale: bool, reason
 def collect(spec: SourceSpec, as_of: date, *, offline: bool, raw_root: Path) -> Collected:
     """Bruto válido de ``spec`` para t0; se falhar, o último válido anterior (stale)."""
     problem: str | None = None
+    fetch_error: Exception | None = None
     if not offline:
         try:
             fetched = spec.fetch()
@@ -158,6 +162,7 @@ def collect(spec: SourceSpec, as_of: date, *, offline: bool, raw_root: Path) -> 
                 root=raw_root,
             )
         except _SOURCE_ERRORS as exc:
+            fetch_error = exc
             problem = f"{type(exc).__name__}: {exc}"
             log.warning("fonte falhou", extra={"source": spec.source, "error": problem})
 
@@ -167,7 +172,7 @@ def collect(spec: SourceSpec, as_of: date, *, offline: bool, raw_root: Path) -> 
             spec.check(same_day.content, as_of)
             got = Collected(
                 same_day.content,
-                _record(spec, same_day, as_of, stale=False, reason=None, raw_root=raw_root),
+                _record(spec, same_day, as_of, stale=False, reason=None),
             )
             if problem is not None:  # coleta de agora falhou, mas há bruto válido de hoje
                 got.alerts.append(
@@ -201,8 +206,10 @@ def collect(spec: SourceSpec, as_of: date, *, offline: bool, raw_root: Path) -> 
         )
         return Collected(
             older.content,
-            _record(spec, older, as_of, stale=True, reason=reason, raw_root=raw_root),
+            _record(spec, older, as_of, stale=True, reason=reason),
             [alert],
+            failure=problem,
+            not_published=isinstance(fetch_error, NotPublishedError),
         )
     raise BlockingError(f"{spec.source}: {problem}; nenhum bruto válido anterior")
 
@@ -216,9 +223,19 @@ def _check_anbima(content: bytes, day: date) -> AnbimaEttj:
     return ettj
 
 
-def _check_sgs(content: bytes, _day: date) -> None:
-    if not parse_sgs(content):
-        raise ValueError("série vazia")
+def _sgs_check(bounds: tuple[float, float], what: str) -> Callable[[bytes, date], None]:
+    """Seção 12: série não vazia e todos os valores dentro da faixa plausível."""
+    lo, hi = bounds
+
+    def check(content: bytes, _day: date) -> None:
+        rows = parse_sgs(content)
+        if not rows:
+            raise ValueError("série vazia")
+        bad = [(d.isoformat(), v) for d, v in rows if not lo <= v <= hi]
+        if bad:
+            raise ValueError(f"{what} fora da faixa [{lo}, {hi}]: {bad[:3]}")
+
+    return check
 
 
 def _check_ibge(content: bytes, _day: date) -> None:
@@ -226,9 +243,10 @@ def _check_ibge(content: bytes, _day: date) -> None:
         raise ValueError("agenda sem divulgações do IPCA")
 
 
-def _last_obs(content: bytes, _day: date) -> date | None:
-    rows = parse_sgs(content)
-    return rows[-1][0] if rows else None
+def _last_obs(content: bytes, day: date) -> date | None:
+    """Data econômica: a última observação até t0 (o bruto pode trazer dias posteriores)."""
+    dates = [d for d, _ in parse_sgs(content) if d <= day]
+    return max(dates) if dates else None
 
 
 def source_specs(client: httpx.Client | None, as_of: date, cfg: Config) -> list[SourceSpec]:
@@ -243,6 +261,10 @@ def source_specs(client: httpx.Client | None, as_of: date, cfg: Config) -> list[
         return lambda: fetch_sgs(need(), code, start, end, as_of=as_of, cfg=cfg)
 
     first, last = date(year - 1, 1, 1), date(year, 12, 31)
+    # A agenda vai até o fim do ano seguinte: depois do IPCA de novembro (~10/12), a
+    # próxima divulgação já é de janeiro, e o montador exige uma divulgação após t0.
+    agenda_last = date(year + 1, 12, 31)
+    r = cfg.ranges
     return [
         SourceSpec(
             "anbima_ettj",
@@ -255,30 +277,34 @@ def source_specs(client: httpx.Client | None, as_of: date, cfg: Config) -> list[
             "bcb_sgs_12",
             "bcb_sgs_12.json",
             sgs(cfg.sgs.cdi_daily, date(year, 1, 1), as_of),
-            _check_sgs,
+            _sgs_check(r.cdi_daily_pct, "CDI diário"),
             _last_obs,
         ),
         SourceSpec(
             "bcb_sgs_433",
             "bcb_sgs_433.json",
             sgs(cfg.sgs.ipca_monthly, first, last),
-            _check_sgs,
+            _sgs_check(r.ipca_monthly_pct, "IPCA mensal"),
             _last_obs,
         ),
         SourceSpec(
             "bcb_sgs_4390",
             "bcb_sgs_4390.json",
             sgs(cfg.sgs.selic_monthly, first, last),
-            _check_sgs,
+            _sgs_check(r.selic_monthly_pct, "Selic mensal"),
             _last_obs,
         ),
         SourceSpec(
-            "bcb_sgs_7478", "bcb_sgs_7478.json", sgs(7478, first, last), _check_sgs, _last_obs
+            "bcb_sgs_7478",
+            "bcb_sgs_7478.json",
+            sgs(cfg.sgs.ipca15_monthly, first, last),
+            _sgs_check(r.ipca_monthly_pct, "IPCA-15 mensal"),
+            _last_obs,
         ),
         SourceSpec(
             "ibge_calendario",
             "ibge_calendario.json",
-            lambda: fetch_ibge_calendar(need(), first, last, as_of=as_of, cfg=cfg),
+            lambda: fetch_ibge_calendar(need(), first, agenda_last, as_of=as_of, cfg=cfg),
             _check_ibge,
             lambda c, d: None,
         ),
@@ -319,21 +345,21 @@ def _ipca_cutoff(
 
 def _cdi_with_fill(
     cdi: list[tuple[date, float]], cal: BusinessCalendar, as_of: date
-) -> tuple[list[tuple[date, float]], list[Alert]]:
+) -> tuple[list[tuple[date, float]], list[Alert], str | None]:
     """Q18 (provisório): dias finais sem CDI (atraso do SGS) repetem a última observação.
 
     Só cobre a ponta, nunca um buraco no meio, e sempre com alerta.
     """
     if not cdi:
-        return cdi, []
+        return cdi, [], None
     needed = cal.business_days_list(date(as_of.year, 1, 1), as_of)
     have = {d for d, _ in cdi}
     missing = [d for d in needed if d not in have]
     if not missing:
-        return cdi, []
+        return cdi, [], None
     last_day, last_rate = cdi[-1]
     if any(d < last_day for d in missing):
-        return cdi, []  # buraco no meio: deixa o montador falhar alto
+        return cdi, [], None  # buraco no meio: deixa o montador falhar alto
     filled = [*cdi, *((d, last_rate) for d in missing)]
     alert = Alert(
         level="warning",
@@ -344,7 +370,7 @@ def _cdi_with_fill(
         ),
         source="bcb_sgs_12",
     )
-    return filled, [alert]
+    return filled, [alert], alert.message
 
 
 def _git_commit() -> str | None:
@@ -359,9 +385,10 @@ def _git_commit() -> str | None:
     return out.stdout.strip() or None
 
 
-def _previous_output(curves_dir: Path, as_of: date) -> dict[str, Any] | None:
-    files = sorted(p for p in curves_dir.glob("*.json") if p.stem < f"{as_of:%Y-%m-%d}")
-    return json.loads(files[-1].read_text("utf-8")) if files else None
+def _previous_output(curves_dir: Path, as_of: date, cal: BusinessCalendar) -> dict[str, Any] | None:
+    """Saída do dia útil imediatamente anterior a t0 (referência fixa da variação diária)."""
+    target = curves_dir / f"{cal.preceding(as_of - timedelta(days=1)):%Y-%m-%d}.json"
+    return json.loads(target.read_text("utf-8")) if target.exists() else None
 
 
 def _compute(
@@ -382,8 +409,12 @@ def _compute(
     releases = parse_ipca_releases(agenda)
 
     cutoff, alerts = _ipca_cutoff(releases, ipca, as_of)
-    cdi, cdi_alerts = _cdi_with_fill(cdi, cal, as_of)
+    observed = [d for d, _ in cdi if d < as_of]
+    cdi, cdi_alerts, filled = _cdi_with_fill(cdi, cal, as_of)
     alerts += cdi_alerts
+    if filled is not None:
+        src = sources["bcb_sgs_12"]
+        src.record = src.record.model_copy(update={"stale": True, "fallback_reason": filled})
     di_curve, inflation_curve = corrected_curves(ettj)
     try:
         corrected_inputs = build_corrected_inputs(
@@ -416,6 +447,7 @@ def _compute(
             legacy_daily=legacy_daily,
             legacy=compute_legacy(legacy_daily.inputs),
             cdi=cdi,
+            cdi_last_observed=max(observed) if observed else None,
             ipca=ipca,
             selic=selic,
             releases=releases,
@@ -423,6 +455,16 @@ def _compute(
         )
     except (ValueError, ArithmeticError) as exc:
         raise BlockingError(f"cálculo: {type(exc).__name__}: {exc}") from exc
+    # Seção 7: data de divulgação do IPCA e do IPCA-15 usados (agenda do IBGE, Q9).
+    ipca_src = sources["bcb_sgs_433"]
+    ipca_src.record = ipca_src.record.model_copy(
+        update={"publication_date": corrected_inputs.ipca_last_release_date}
+    )
+    if corrected_inputs.ipca15_used is not None:
+        src15 = sources["bcb_sgs_7478"]
+        src15.record = src15.record.model_copy(
+            update={"publication_date": corrected_inputs.ipca15_used.release_date}
+        )
     return bundle, alerts
 
 
@@ -440,13 +482,15 @@ def run(
     require_fresh_curves: bool = False,
 ) -> RunResult:
     cal = load_anbima_calendar(paths.holidays) if paths.holidays else load_anbima_calendar()
+    today = today or datetime.now(BRT).date()
     if as_of is None:
-        today = today or datetime.now(BRT).date()
         if not cal.is_business_day(today):
             return RunResult("skipped", None, f"{today:%d/%m/%Y} não é dia útil ANBIMA")
         as_of = today
     elif not cal.is_business_day(as_of):
         raise BlockingError(f"t0 = {as_of} não é dia útil ANBIMA")
+    if as_of > today:
+        raise BlockingError(f"t0 = {as_of} está no futuro (hoje = {today})")
 
     alerts: list[Alert] = []
     sources: dict[str, Collected] = {}
@@ -454,7 +498,11 @@ def run(
         got = collect(spec, as_of, offline=offline, raw_root=paths.raw_root)
         if require_fresh_curves and spec.source == "anbima_ettj" and got.record.stale:
             # E8.1: t0 é um dia com curvas; sem a ETTJ do dia, não há o que publicar.
-            raise NotReadyError(f"ETTJ da ANBIMA de {as_of:%d/%m/%Y} ainda não disponível")
+            # Só "ainda não publicado" no próprio dia é espera normal; qualquer outra
+            # falha (rede, formato, validação, dia passado vazio) é erro visível.
+            if got.not_published and as_of >= today:
+                raise NotReadyError(f"ETTJ da ANBIMA de {as_of:%d/%m/%Y} ainda não publicada")
+            raise BlockingError(f"anbima_ettj de {as_of:%d/%m/%Y}: {got.failure}")
         sources[spec.source] = got
         alerts += got.alerts
     try:
@@ -476,7 +524,7 @@ def run(
             code_version=__version__,
             git_commit=git_commit if git_commit is not None else _git_commit(),
         )
-        previous = _previous_output(paths.curves_dir, as_of)
+        previous = _previous_output(paths.curves_dir, as_of, cal)
         if previous is not None:
             extra = daily_change_alerts(previous, output, cfg.alerts.max_daily_change_bps)
             output = output.model_copy(update={"alerts": [*output.alerts, *extra]})
@@ -494,17 +542,29 @@ def run(
 ANBIMA_WINDOW = 5  # a página pública da ANBIMA só guarda os últimos 5 dias úteis
 
 
-def pending_dates(today: date, paths: Paths, cal: BusinessCalendar) -> list[date]:
-    """Dias úteis da janela da ANBIMA (até hoje) posteriores à última saída gravada."""
+def _needs_run(path: Path) -> bool:
+    """Sem saída, ou saída publicada com a ETTJ de outro dia (stale): refazer."""
+    if not path.exists():
+        return True
+    out = json.loads(path.read_text("utf-8"))
+    return any(s["source"] == "anbima_ettj" and s["stale"] for s in out["sources"])
+
+
+def pending_dates(
+    today: date, paths: Paths, cal: BusinessCalendar, start: date | None = None
+) -> list[date]:
+    """Dias úteis da janela da ANBIMA (até hoje, a partir de ``start``) ainda por fazer."""
     window: list[date] = []
     day = today
     while len(window) < ANBIMA_WINDOW:
         if cal.is_business_day(day):
             window.append(day)
         day -= timedelta(days=1)
-    existing = sorted(p.stem for p in paths.curves_dir.glob("*.json"))
-    last = date.fromisoformat(existing[-1]) if existing else None
-    return sorted(d for d in window if last is None or d > last)
+    return sorted(
+        d
+        for d in window
+        if (start is None or d >= start) and _needs_run(paths.curves_dir / f"{d:%Y-%m-%d}.json")
+    )
 
 
 @dataclass(frozen=True)
@@ -534,12 +594,20 @@ def catch_up(
     published: list[RunResult] = []
     not_ready: list[tuple[date, str]] = []
     blocked: list[tuple[date, str]] = []
-    for day in pending_dates(today, paths, cal):
+    for day in pending_dates(today, paths, cal, cfg.pipeline_start):
         try:
             published.append(
-                run(as_of=day, client=client, paths=paths, cfg=cfg, git_commit=git_commit,
-                    gap_rule=gap_rule, require_fresh_curves=True)
-            )  # fmt: skip
+                run(
+                    as_of=day,
+                    today=today,
+                    client=client,
+                    paths=paths,
+                    cfg=cfg,
+                    git_commit=git_commit,
+                    gap_rule=gap_rule,
+                    require_fresh_curves=True,
+                )
+            )
         except NotReadyError as exc:
             not_ready.append((day, str(exc)))
         except BlockingError as exc:

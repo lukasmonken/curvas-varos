@@ -10,8 +10,8 @@ __pycache__/
 scratch/**
 !scratch/*.py
 
-# Build do site (gerado no workflow)
-site/
+# Build do site (gerado no workflow; só a pasta site/ da raiz)
+/site/
 
 # Travas do armazenamento de brutos
 data/raw/**/.manifest.lock

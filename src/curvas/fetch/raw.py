@@ -144,21 +144,27 @@ def _month_zip(as_of: date, root: Path) -> Path:
 
 
 def _read_day(as_of: date, root: Path) -> tuple[list[dict[str, Any]], dict[str, bytes]] | None:
-    """Manifesto e arquivos de um dia, da pasta solta ou do zip do mês."""
-    folder = day_dir(as_of, root)
-    if (folder / "manifest.json").exists():
-        entries = json.loads((folder / "manifest.json").read_text("utf-8"))
-        return entries, {e["file"]: (folder / e["file"]).read_bytes() for e in entries}
+    """Manifesto e arquivos de um dia: o zip do mês (se houver) e, depois, a pasta solta.
+
+    As duas partes são juntadas: uma coleta nova de um dia de mês já compactado cria
+    uma pasta solta, e ela não pode esconder o que está no zip.
+    """
+    entries: list[dict[str, Any]] = []
+    files: dict[str, bytes] = {}
     archive = _month_zip(as_of, root)
     if archive.exists():
         prefix = f"{as_of:%Y-%m-%d}/"
         with zipfile.ZipFile(archive) as zf:
-            names = set(zf.namelist())
-            if prefix + "manifest.json" not in names:
-                return None
-            entries = json.loads(zf.read(prefix + "manifest.json").decode("utf-8"))
-            return entries, {e["file"]: zf.read(prefix + e["file"]) for e in entries}
-    return None
+            if prefix + "manifest.json" in set(zf.namelist()):
+                zipped = json.loads(zf.read(prefix + "manifest.json").decode("utf-8"))
+                entries += zipped
+                files.update({e["file"]: zf.read(prefix + e["file"]) for e in zipped})
+    folder = day_dir(as_of, root)
+    if (folder / "manifest.json").exists():
+        loose = json.loads((folder / "manifest.json").read_text("utf-8"))
+        entries += loose
+        files.update({e["file"]: (folder / e["file"]).read_bytes() for e in loose})
+    return (entries, files) if entries else None
 
 
 def read_raw(as_of: date, source: str, root: Path = RAW_DIR) -> RawEntry | None:
