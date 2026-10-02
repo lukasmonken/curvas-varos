@@ -127,11 +127,11 @@ CI=true uv run pytest -q
 |---|---|
 | `test_legacy.py` | LEGADO uso (a) contra a planilha recalculada |
 | `test_e10.py` | Casos E10 |
-| `test_corrected.py`, `test_corrected_inputs.py` | Reprecificação (< 1e-12), flat-forward, curva flat, sanidade |
+| `test_corrected.py` | Reprecificação (< 1e-12), flat-forward, curva flat, sanidade |
 | `test_curves.py`, `test_annual.py` | Propriedades com hypothesis |
 | `test_calendar.py` | Calendário dia a dia contra o bizdays até 2099 |
 | `test_fetch.py`, `test_run.py` | Retry, brutos imutáveis, pipeline ponta a ponta sem rede, stale, bloqueios, recuperação, zip, schema |
-| `test_anbima.py`, `test_normalize.py`, `test_cds_manual.py`, `test_cdi_monthly.py`, `test_reconciliacao_anbima.py` | Parsers e regras das fontes |
+| `test_anbima.py`, `test_normalize.py`, `test_cds_manual.py`, `test_cdi_monthly.py`, `test_corrected_inputs.py`, `test_reconciliacao_anbima.py` | Parsers, regras das fontes e montagem dos inputs |
 | `test_attribution.py` | Cascata da F2 e tabela publicada em dia |
 | `test_exports.py`, `test_site.py` | CSV, XLSX, páginas, links, Q17, determinismo |
 
@@ -578,7 +578,7 @@ Se um passo depois do Pipeline falhar, os seguintes não rodam e o site anterior
 
 - A ETTJ ainda não foi publicada: normal até a noite.
 - O passo de testes falhou e o pipeline nem rodou.
-- O dia saiu da janela de 5 dias úteis: a recuperação não o tenta mais. Rode o daily com `as_of` = o dia; se a ANBIMA não servir mais a data, o run usa o bruto da ETTJ já gravado de t0 (com o alerta `fonte_bruto_do_dia`). Sem bruto gravado, o dia não pode mais ser feito com a ETTJ dele.
+- O dia saiu da janela de 5 dias úteis: a recuperação não o tenta mais. Rode o daily com `as_of` = o dia; se a ANBIMA não servir mais a data, o run usa o bruto da ETTJ já gravado de t0 (com o alerta `fonte_bruto_do_dia`). Sem esse bruto, o `as_of` publica com a ETTJ do último dia válido (`stale`): a curva daquele dia está perdida.
 - Datas anteriores a 29/09/2026 nunca entram.
 - O dia já tem saída com ETTJ do próprio dia e o CDS não mudou: não há o que refazer. Para forçar, rode o daily com `as_of`.
 
