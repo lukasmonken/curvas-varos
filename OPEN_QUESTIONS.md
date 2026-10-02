@@ -20,7 +20,7 @@ Status: `ABERTA` até resposta explícita. Coluna "Bloqueia" indica a primeira f
 | Q14 | Erro de colagem na curva de DI da planilha (E6.12) | F3 | RESOLVIDA: LEGADO (a) reproduz como está; F2 mostra o efeito à parte; diário sem o erro |
 | Q15 | Composição das curvas a partir da ANBIMA (LEGADO b e CORRIGIDO) | F4 | RESOLVIDA: LEGADO como o operador (sem o erro); CORRIGIDO só vértices publicados |
 | Q16 | CDS diário, gratuito e automático | — | ABERTA (meta; ver texto) |
-| Q17 | CDS copiado do Investing.com num repositório público | — | PARCIAL: site com os links de cada vértice e coleta manual; exibir os valores segue em aberto (jurídico) |
+| Q17 | CDS copiado do Investing.com num repositório público | — | RESOLVIDA: publicar com os valores (decisão de 02/10/2026); links de coleta no site |
 | Q18 | CDI do SGS atrasado na véspera de t0 | — | PROVISÓRIO: repetir a última taxa, com alerta |
 | Q19 | ANBIMA vai desligar a aba das curvas (download CZ-down.asp) | — | RISCO: monitorar |
 
@@ -214,3 +214,6 @@ A página [curvas de juros fechamento](https://www.anbima.com.br/pt_br/informar/
 - **Preparação:** levantar o acesso às curvas no ANBIMA Data (cadastro, API, termos de uso e se há custo) antes do desligamento. Trocar de fonte exige registro aqui (regra "não troque fontes sem documentar").
 - **Alternativa para o DI:** taxas referenciais DI × Pré da B3 (E9). Seria troca de fonte, com decisão sua.
 
+## Q17. Decisão final (02/10/2026)
+
+O usuário decidiu publicar repositório e site com os valores de CDS: o site é uma ferramenta operacional, sem dado sensível. A ressalva dos termos do Investing.com (§14) fica registrada acima como risco conhecido e aceito. A chave `site.show_cds_values` / variável `OCULTAR_CDS` continua disponível, desligada por padrão, caso a decisão mude.
