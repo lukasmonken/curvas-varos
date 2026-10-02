@@ -39,7 +39,12 @@ jobs:
       TZ: America/Sao_Paulo
       CI: "true"
     steps:
+      # A ponta do branch no início do job, e não o github.sha do disparo: um daily que
+      # ficou na fila (ou disparado pelo cds enquanto outro rodava) partiria de um commit
+      # sem os dados que o anterior gravou, e o push do commit dele conflitaria.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
@@ -89,9 +94,24 @@ jobs:
             git push
           fi
 
+      # Q17: variável de repositório OCULTAR_CDS = true esconde os valores de CDS e a taxa
+      # de desconto no site e nos downloads (os links de coleta ficam). Sem diferenciar
+      # maiúsculas nem espaços; valor que não seja sim nem não falha o build (falha fechada).
       - name: Build do site
         if: steps.run.outputs.published == 'true'
-        run: uv run python -m curvas.site.build --out site
+        env:
+          OCULTAR_CDS: ${{ vars.OCULTAR_CDS }}
+        run: |
+          v=$(printf '%s' "$OCULTAR_CDS" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+          case "$v" in
+            true|1|sim)
+              uv run python -m curvas.site.build --out site --ocultar-cds ;;
+            ""|false|0|nao|não)
+              uv run python -m curvas.site.build --out site ;;
+            *)
+              echo "::error::OCULTAR_CDS inválido: use true para esconder o CDS ou false (ou vazio) para mostrar."
+              exit 1 ;;
+          esac
 
       - uses: actions/upload-pages-artifact@v5
         if: steps.run.outputs.published == 'true'

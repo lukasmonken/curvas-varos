@@ -22,3 +22,6 @@ data/raw/**/.manifest.lock
 
 # Planilha legada interna: fica só na máquina local (não vai para o repositório público)
 docs/legado/*.xlsx
+
+# Configuração local do Claude Code (preview do site)
+/.claude/

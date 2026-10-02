@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Coleta do CDS</h1>
+    <p class="lead">O CDS Brasil (USD) não tem fonte gratuita que permita coleta automática: os termos do Investing.com vedam a extração por robô (Q16). A coleta é manual, como na planilha: uma vez por dia útil, alguém abre a aba de cada vértice, lê o fechamento e registra os 9 valores.</p>
+  </div>
+</div>
+
+<section class="card" aria-labelledby="vertices">
+  <div class="card-head">
+    <h2 id="vertices">Vértices</h2>
+    <span class="badge {{ c.status }}">{{ c.status_text }}</span>
+  </div>
+  <p>Último registro usado pelo pipeline: <strong>{{ c.reference_date }}</strong> (t0 = {{ t0 }}).{% if c.reason %} <span class="muted">{{ c.reason }}.</span>{% endif %}</p>
+  <div class="table-wrap" tabindex="0" role="region" aria-labelledby="vertices">
+    <table>
+      <thead>
+        <tr><th scope="col">Vértice</th><th scope="col">Prazo (d.u.)</th>{% if show_cds %}<th scope="col">Último valor (bps)</th>{% endif %}<th scope="col" class="text">Aba do Investing.com</th></tr>
+      </thead>
+      <tbody>
+{% for link in c.links %}
+        <tr><th scope="row">{{ link.label }}</th><td>{{ link.days }}</td>{% if show_cds %}<td>{{ link.value }}</td>{% endif %}<td class="text"><a class="ext" href="{{ link.url }}" target="_blank" rel="noopener noreferrer">Abrir CDS {{ link.label }}<span class="skip"> (abre em nova aba)</span></a></td></tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% if not show_cds %}
+  <p class="note">Os valores registrados não são exibidos neste site (Q17); os links continuam.</p>
+{% endif %}
+  <p class="muted small">CDS: cópia manual do Investing.com.</p>
+</section>
+
+<section class="card" aria-labelledby="registrar">
+  <h2 id="registrar">Como registrar</h2>
+  <ol class="steps">
+    <li>Abra cada aba acima e anote o último fechamento, em bps, na ordem 6M 1A 2A 3A 4A 5A 7A 10A 20A.</li>
+    <li>Registre os 9 valores de uma destas formas:
+      <ul>
+        <li><strong>Pelo GitHub</strong>, sem instalar nada (precisa de acesso de escrita ao repositório): aba Actions → workflow <strong>cds</strong> → <em>Run workflow</em>, com os campos <code>data</code> (AAAA-MM-DD), <code>valores</code> (os 9 números, separados por espaço, na ordem acima, com ponto ou vírgula decimal) e <code>por</code> (seu nome). O workflow grava o registro e dispara o <strong>daily</strong> em modo de recuperação, que refaz a data-base se ela ainda estiver na janela de 5 dias úteis da ANBIMA.{% if c.workflow_url %} <a class="ext" href="{{ c.workflow_url }}" target="_blank" rel="noopener noreferrer">Abrir o formulário</a>{% endif %}</li>
+        <li><strong>Pela linha de comando</strong>, na pasta do repositório, trocando cada rótulo pelo valor em bps (ponto ou vírgula decimal); sem <code>--valores</code>, o comando pergunta um por um:
+          <pre><code>uv run python -m curvas.cds_add --data AAAA-MM-DD --por "Nome" \
+    --valores "6M 1A 2A 3A 4A 5A 7A 10A 20A"</code></pre>
+        </li>
+      </ul>
+    </li>
+  </ol>
+  <p>Os 9 valores passam pela mesma validação do pipeline antes de entrar em <code>data/manual/cds.csv</code>; se algo estiver errado, nada é gravado. Para corrigir um dia, registre de novo: vale o registro mais recente. Sem CDS do dia, o pipeline usa o último disponível, marca a fonte como defasada e gera alerta.</p>
+</section>
+{% endblock %}

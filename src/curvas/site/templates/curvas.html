@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Curvas</h1>
+    <p class="lead">Vértices (pontos) e curva interpolada (linha) de cada fonte em t0 = {{ t0 }}, no modo escolhido. No CORRIGIDO, a linha é a taxa spot da interpolação flat-forward; no LEGADO, a taxa diária da interpolação linear. O fator vai de t0 até o prazo, só com a curva.</p>
+  </div>
+</div>
+
+<script src="assets/plotly.min.js"></script>
+<div class="controls">
+  <div class="seg" role="group" aria-label="Medida">
+    <button type="button" data-set-measure="rate" aria-pressed="true">Taxa</button>
+    <button type="button" data-set-measure="factor" aria-pressed="false">Fator</button>
+  </div>
+  <div>
+    <label for="comparar">Comparar com</label>
+    <select id="comparar" data-compare{% if not compare %} disabled{% endif %}>
+      <option value="">{{ 'sem comparação' if compare else 'nenhuma outra data-base' }}</option>
+{% for d in compare %}
+      <option value="{{ d.value }}">{{ d.label }}</option>
+{% endfor %}
+    </select>
+  </div>
+</div>
+
+<div class="tabs" role="tablist" aria-label="Curva">
+{% for tab in tabs %}
+  <button type="button" role="tab" id="aba-{{ tab.name }}" aria-controls="painel-{{ tab.name }}" aria-selected="{{ 'true' if loop.first else 'false' }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ tab.label }}</button>
+{% endfor %}
+</div>
+
+{% for tab in tabs %}
+<section class="tab-panel" role="tabpanel" id="painel-{{ tab.name }}" aria-labelledby="aba-{{ tab.name }}"{% if not loop.first %} hidden{% endif %}>
+  <p class="muted small">Fonte em t0: {{ tab.source }}.{% if tab.name == "cds" %} O vértice de 20A (5040 d.u.) fica fora do gráfico, que vai até 2036; ele só entra na interpolação entre 10A e 20A e aparece na tabela.{% endif %}</p>
+  <div class="chart only-rate">{{ tab.rate_chart }}</div>
+  <div class="chart only-factor">{{ tab.factor_chart }}</div>
+{% for table in tab.tables %}
+  <div class="card only-{{ table.mode }}">
+    <div class="card-head">
+      <h2>Vértices em t0</h2>
+      <span class="mode-tag">{{ table.label }}</span>
+    </div>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Vértices de {{ tab.label }} em t0, {{ table.label }}">
+      <table>
+        <thead><tr>{% for h in table.headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+        <tbody>
+{% for row in table.rows %}
+          <tr><th scope="row">{{ row.head }}</th>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>
+{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small">Fator do vértice: (1 + taxa)^(prazo/252) (E8.2).{% if table.mode == "legacy" %} A linha do LEGADO acumula a taxa de cada dia como forward (E4.2) e não passa por esses fatores (E6.1).{% endif %}</p>
+  </div>
+{% endfor %}
+</section>
+{% endfor %}
+{% if not show_cds %}
+<p class="note">A curva de CDS não é exibida neste site (Q17). Os links para a coleta manual estão em <a href="cds.html">Coleta do CDS</a>.</p>
+{% endif %}
+{% endblock %}

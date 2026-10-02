@@ -1,5 +1,6 @@
 """Monta a saída JSON da execução (Parte 1, seção 11) a partir dos resultados do motor."""
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -10,6 +11,7 @@ from curvas.engine.corrected import (
     CorrectedResult,
     FactorCurve,
     IpcaRelease,
+    compound_daily_cdi,
     real_rate,
 )
 from curvas.engine.curves import VertexCurve, accumulate_recursive
@@ -55,6 +57,7 @@ class ComputeBundle:
     legacy_daily: LegacyDaily
     legacy: LegacyResult
     cdi: Sequence[tuple[date, float]]
+    cdi_days: Sequence[date]  # dias úteis de 1º/jan até t0 (exclusive), os do fator do CDI
     cdi_last_observed: date | None  # última observação real (antes do preenchimento da Q18)
     ipca: dict[tuple[int, int], float]
     selic: dict[tuple[int, int], float]
@@ -195,6 +198,23 @@ def _annual(b: ComputeBundle) -> tuple[AnnualOut, list[Alert]]:
     return annual, alerts
 
 
+def cdi_monthly(cdi: Sequence[tuple[date, float]], days: Sequence[date]) -> list[MonthlyValue]:
+    """CDI realizado de cada mês, em % no mês: ``(Π(1 + CDI_d/100) − 1)·100``.
+
+    Usa os mesmos dias e taxas do fator ``realized.cdi.factor`` (1º/jan até a véspera
+    de t0, Q11-B, com o preenchimento da Q18). O mês de t0 sai parcial; mês sem dia
+    útil antes de t0 não entra (t0 no 1º dia útil do ano: lista vazia).
+    """
+    rates = dict(cdi)
+    months: dict[tuple[int, int], list[date]] = {}
+    for d in days:
+        months.setdefault((d.year, d.month), []).append(d)
+    return [
+        MonthlyValue(year=y, month=m, value_pct=(compound_daily_cdi(rates, ds) - 1) * 100)
+        for (y, m), ds in months.items()
+    ]
+
+
 def _realized(b: ComputeBundle) -> RealizedOut:
     ci, year = b.corrected_inputs, b.as_of.year
     release = {(r.ref_year, r.ref_month): r.release_date for r in b.releases}
@@ -226,6 +246,7 @@ def _realized(b: ComputeBundle) -> RealizedOut:
             factor=ci.cdi_realized_factor,
             last_observation=b.cdi_last_observed,
         ),
+        cdi_monthly=cdi_monthly(b.cdi, b.cdi_days),
         selic_monthly_legacy=[
             MonthlyValue(year=year, month=m, value_pct=b.selic[(year, m)])
             for m in range(1, month + 1)
@@ -328,3 +349,21 @@ def daily_change_alerts(
                         )
                     )
     return alerts
+
+
+# Mensagem de ``daily_change_alerts``: "<modo> <campo> <ano>: ...".
+CHANGE = re.compile(r"^(?P<mode>\w+) (?P<field>\w+) (?P<year>\d{4}):")
+CHANGE_HIDDEN = "variação acima do limite"  # o que fica no lugar do valor (Q17)
+CDS_FIELDS = frozenset({"cds", "discount"})
+
+
+def hide_cds_change(alert: Alert) -> Alert:
+    """Q17: variação diária do CDS ou da taxa de desconto sem o valor em bps (fica o fato).
+
+    Regra única do site e dos downloads; qualquer outro alerta volta igual.
+    """
+    match = CHANGE.match(alert.message) if alert.code == "variacao_diaria" else None
+    if match is None or match["field"] not in CDS_FIELDS:
+        return alert
+    message = f"{match['mode']} {match['field']} {match['year']}: {CHANGE_HIDDEN}"
+    return alert.model_copy(update={"message": message})

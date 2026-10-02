@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Realizado</h1>
+    <p class="lead">O que já aconteceu no ano de t0 = {{ t0 }}: IPCA, usado nos dois modos; CDI, usado no CORRIGIDO; e Selic mensal, usada no LEGADO. Meses sempre com o ano.</p>
+  </div>
+</div>
+
+<div class="grid">
+  <section class="card" aria-labelledby="ipca">
+    <div class="card-head">
+      <h2 id="ipca">IPCA mensal</h2>
+      <span class="mode-tag">CORRIGIDO e LEGADO</span>
+    </div>
+{% if r.ipca %}
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="ipca">
+      <table>
+        <thead><tr><th scope="col">Mês</th><th scope="col">IPCA no mês</th><th scope="col">Divulgação</th></tr></thead>
+        <tbody>
+{% for row in r.ipca %}
+          <tr><th scope="row">{{ row.head }}</th>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>
+{% endfor %}
+        </tbody>
+      </table>
+    </div>
+{% else %}
+    <p class="muted">Sem IPCA divulgado no ano até t0.</p>
+{% endif %}
+    <dl class="facts">
+      <dt>IPCA acumulado no ano ({{ r.ipca_period }})</dt><dd>{{ r.ipca_ytd }}</dd>
+    </dl>
+  </section>
+
+  <section class="card" aria-labelledby="regra">
+    <h2 id="regra">IPCA ainda não divulgado</h2>
+    <p>{{ r.ipca_rule }}</p>
+    <h3>IPCA-15</h3>
+    <p class="muted">{{ r.ipca15 }}</p>
+  </section>
+</div>
+
+<div class="grid">
+  <section class="card" aria-labelledby="cdi">
+    <div class="card-head">
+      <h2 id="cdi">CDI mensal</h2>
+      <span class="mode-tag">CORRIGIDO</span>
+    </div>
+{% if r.cdi %}
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="cdi">
+      <table>
+        <thead><tr><th scope="col">Mês</th><th scope="col">CDI no mês</th>{% if r.cdi_partial %}<th scope="col" class="text">Observação</th>{% endif %}</tr></thead>
+        <tbody>
+{% for row in r.cdi %}
+          <tr><th scope="row">{{ row.head }}</th><td>{{ row.cells[0] }}</td>{% if r.cdi_partial %}<td class="text">{{ row.cells[1] }}</td>{% endif %}</tr>
+{% endfor %}
+        </tbody>
+      </table>
+    </div>
+{% else %}
+    <p class="muted">CDI mensal: sem dados nesta saída.</p>
+{% endif %}
+    <dl class="facts">
+      <dt>Fator do CDI no ano</dt><dd>{{ r.cdi_factor }}</dd>
+      <dt>CDI acumulado no ano</dt><dd>{{ r.cdi_accumulated }}</dd>
+      <dt>Dias úteis</dt><dd>{{ r.cdi_business_days }}</dd>
+      <dt>Último CDI observado antes de t0 (SGS 12)</dt><dd>{{ r.cdi_last_observation }}</dd>
+    </dl>
+    <p class="muted small">Período: {{ r.cdi_period }}. O próprio dia t0 fica na curva (Q11).</p>
+  </section>
+
+  <section class="card" aria-labelledby="selic">
+    <div class="card-head">
+      <h2 id="selic">Selic mensal</h2>
+      <span class="mode-tag">LEGADO</span>
+    </div>
+{% if r.selic %}
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="selic">
+      <table>
+        <thead><tr><th scope="col">Mês</th><th scope="col">Selic no mês</th></tr></thead>
+        <tbody>
+{% for row in r.selic %}
+          <tr><th scope="row">{{ row.head }}</th>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>
+{% endfor %}
+        </tbody>
+      </table>
+    </div>
+{% else %}
+    <p class="muted">Sem Selic mensal usada nesta data-base.</p>
+{% endif %}
+    <p class="muted small">O LEGADO usa a Selic como realizado do DI, até o mês do último IPCA divulgado, m (E6.9, Q6). Dos meses listados, só os do trimestre de m entram no DI publicado do LEGADO; a Selic dos trimestres anteriores não entra (E4.3).</p>
+  </section>
+</div>
+{% endblock %}

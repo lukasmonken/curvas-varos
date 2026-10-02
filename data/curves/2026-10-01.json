@@ -2,8 +2,8 @@
  "metadata": {
   "as_of_date": "2026-10-01",
   "code_version": "0.1.0",
-  "git_commit": "d4f5cfe46726be69af901ca06a665200e8476c02",
-  "schema_version": "1.0",
+  "git_commit": "c805dc648a78734af83c2ba7210e59118aa67137",
+  "schema_version": "1.1",
   "default_mode": "corrected"
  },
  "sources": [
@@ -4677,6 +4677,62 @@
    "factor": 1.10506476121125,
    "last_observation": "2026-09-30"
   },
+  "cdi_monthly": [
+   {
+    "year": 2026,
+    "month": 1,
+    "value_pct": 1.1641561387977895,
+    "release_date": null
+   },
+   {
+    "year": 2026,
+    "month": 2,
+    "value_pct": 0.9970220253081363,
+    "release_date": null
+   },
+   {
+    "year": 2026,
+    "month": 3,
+    "value_pct": 1.2120535925043807,
+    "release_date": null
+   },
+   {
+    "year": 2026,
+    "month": 4,
+    "value_pct": 1.0900584045334005,
+    "release_date": null
+   },
+   {
+    "year": 2026,
+    "month": 5,
+    "value_pct": 1.0734353626207227,
+    "release_date": null
+   },
+   {
+    "year": 2026,
+    "month": 6,
+    "value_pct": 1.1195038983485839,
+    "release_date": null
+   },
+   {
+    "year": 2026,
+    "month": 7,
+    "value_pct": 1.2152202899923692,
+    "release_date": null
+   },
+   {
+    "year": 2026,
+    "month": 8,
+    "value_pct": 1.093122919301459,
+    "release_date": null
+   },
+   {
+    "year": 2026,
+    "month": 9,
+    "value_pct": 1.0816725728604037,
+    "release_date": null
+   }
+  ],
   "selic_monthly_legacy": [
    {
     "year": 2026,

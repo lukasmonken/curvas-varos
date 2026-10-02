@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="prose">
+<h1>Metodologia</h1>
+<p class="lead">O site publica as mesmas premissas anuais em dois modos, LEGADO e CORRIGIDO, calculados no pipeline com as mesmas fontes e a mesma data-base (t0). A alternância no topo da página só troca o que é exibido. O modo padrão de exibição é o {{ default_label }}.</p>
+
+<h2 id="legado-x-corrigido">LEGADO × CORRIGIDO</h2>
+<p>O <strong>LEGADO</strong> aplica todo dia as fórmulas da planilha antiga (E4) às curvas da ANBIMA{% if show_cds %} e ao CDS manual{% endif %}. O <strong>CORRIGIDO</strong> segue a metodologia da especificação (E8). As diferenças, ponto a ponto:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-labelledby="legado-x-corrigido">
+<table>
+<thead><tr><th scope="col">Etapa</th><th scope="col" class="text">LEGADO</th><th scope="col" class="text">CORRIGIDO</th></tr></thead>
+<tbody>
+<tr><th scope="row" class="text">Vértices</th><td class="text">Grade de 126 em 126 dias úteis, montada como o operador fazia (Q15). DI e inflação: 19 vértices de 126 a 2394 d.u. (inflação 126 := 252; DI 126 da Circular 3.361 e 252 a 2394 da ETTJ PREF); depois de 2394, taxa constante (E6.8). CDS: 9 vértices de 126 a 5040.</td><td class="text">Só os vértices publicados (Q15). Inflação implícita de 252 a 2520. DI: ETTJ PREF e, abaixo de 252, Circular 3.361 (21, 42, 63 e 126).</td></tr>
+<tr><th scope="row" class="text">Interpolação</th><td class="text">Linear nas taxas, constante antes do primeiro e depois do último vértice (E4.1).</td><td class="text">Flat-forward nos fatores F(v) = (1 + s)^(v/252). Antes do primeiro vértice, spot constante; depois do último, a forward do último segmento (E8.2, E8.3).</td></tr>
+<tr><th scope="row" class="text">Acumulação</th><td class="text">Dia a dia, com a taxa interpolada de cada dia usada como a forward daquele dia (E4.2). A curva acumulada não passa pelos fatores dos vértices (E6.1).</td><td class="text">Fator spot da curva interpolada, que reprecifica os vértices (erro menor que 1e-12).</td></tr>
+<tr><th scope="row" class="text">Corte dos anos</th><td class="text">YTG + 252·(n − 1) dias úteis, com YTG = (12 − m)·21, em que m é o mês do último IPCA divulgado até t0 e o trimestre é o que contém m (E4.4, Q6).</td><td class="text">Dias úteis de t0 (inclusive) até 31/12 de cada ano, pelo calendário ANBIMA (E8.4, Q11).</td></tr>
+<tr><th scope="row" class="text">Realizado do ano</th><td class="text">Inflação: IPCA de jan a m (os meses do trimestre de m entram no acumulado diário; os anteriores, só no ano civil). DI: só a Selic dos meses do trimestre de m até m, composta com a curva até o YTG e anualizada com o expoente 4/(5 − trimestre); a Selic dos trimestres anteriores não entra no DI publicado (E4.3, E6.9, Q6). O CDS não tem realizado (E4.2).</td><td class="text">DI: CDI diário (SGS 12) de 1º/jan até a véspera de t0. Inflação: IPCA até o último mês divulgado; o intervalo até t0 é coberto pela curva, contada do 1º dia útil depois desse mês, só no ano corrente (E8.6, Q12).</td></tr>
+<tr><th scope="row" class="text">CDS no ano corrente</th><td class="text">A coluna do ano é o acumulado do CDS nos YTG dias, anualizado: (1 + Acum(YTG))^(252/YTG) − 1. Coincide com o 1º vértice só quando YTG ≤ 126 (m ≥ 6). A linha YTG traz o mesmo acumulado, sem anualizar (E4.5, E6.7; divergência registrada na F0).</td><td class="text">Taxa anualizada só dos dias úteis restantes até 31/12, com o acumulado do período ao lado (E8.7).</td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>Nos dois modos: juro real = (1 + DI)/(1 + Inflação) − 1 (E8.8) e taxa de desconto = (1 + DI)(1 + CDS) − 1, por ano civil (Q4). No ano corrente do CORRIGIDO, a taxa de desconto compõe o DI do ano civil com o CDS anualizado do período restante.</li>
+<li>Na virada do ano, enquanto o IPCA de janeiro não sai (m = dezembro do ano anterior), o LEGADO publica o ano corrente como indisponível, com alerta, e os anos seguintes normalmente (Q6).</li>
+<li>Toda data-base tem um só t0 para as três curvas e para o realizado. Fonte defasada usa o último dado válido, com a data real e alerta; nenhum fallback acontece em silêncio.</li>
+</ul>
+
+<h2 id="diferencas">De onde vêm as diferenças</h2>
+<p>A visão geral mostra CORRIGIDO − LEGADO em bps. A tabela da F2 (<code>docs/F2_LEGADO_X_CORRIGIDO.md</code>) decompõe essa diferença por causa, com os inputs da planilha, numa cascata de ordem fixa:</p>
+<ul>
+<li><strong>Corte em 31/12 e realizado</strong>: as duas metades da diferença de data-base (E6.2). No ano corrente costumam ser grandes e de sinais opostos; o que conta é a soma.</li>
+<li><strong>Acumulação</strong>: a taxa spot de cada dia tratada como forward (E6.1). O sinal depende da inclinação da curva.</li>
+<li><strong>Interpolação</strong>: linear nas taxas × flat-forward, a extrapolação depois do último vértice e a troca de vértices.</li>
+<li><strong>Calendário</strong>: ano fixo de 252 dias úteis × dias úteis de cada ano civil (E6.3).</li>
+<li><strong>Anualização</strong>: o expoente 4/(5 − trimestre) do DI no LEGADO; vale zero no 1º trimestre.</li>
+<li><strong>Erro de colagem</strong>: na curva de DI digitada na planilha, o vértice 378 ficou de fora e os seguintes subiram uma posição (Q14). O pipeline diário monta as curvas direto da ANBIMA, sem esse erro.</li>
+</ul>
+
+<h2 id="especificacao">Especificação</h2>
+<p class="muted">Texto de <code>docs/ESPECIFICACAO.md</code>, escrito a partir da planilha antiga. Os números citados nele são os da planilha, não os da data-base deste site.{% if not show_cds %} Os valores de CDS da planilha foram omitidos (Q17).{% endif %}</p>
+<nav aria-label="Seções da especificação">
+<ol class="toc">
+{% for h in spec.toc %}
+<li><a href="#{{ h.anchor }}">{{ h.text }}</a></li>
+{% endfor %}
+</ol>
+</nav>
+{{ spec_html }}
+</article>
+{% endblock %}

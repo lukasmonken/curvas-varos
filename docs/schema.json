@@ -583,11 +583,11 @@
        "type": "null"
       }
      ],
-     "description": "Hash do commit que gerou a saída",
+     "description": "Hash do commit que gerou a saída (\"-dirty\" no fim: havia alterações locais fora de data/)",
      "title": "Git Commit"
     },
     "schema_version": {
-     "default": "1.0",
+     "default": "1.1",
      "title": "Schema Version",
      "type": "string"
     },
@@ -680,6 +680,14 @@
     },
     "cdi": {
      "$ref": "#/$defs/CdiRealized"
+    },
+    "cdi_monthly": {
+     "description": "CDI realizado por mês do ano corrente, em % no mês, composto do CDI diário (SGS 12) de 1º/jan até a véspera de t0. O mês de t0 é parcial.",
+     "items": {
+      "$ref": "#/$defs/MonthlyValue"
+     },
+     "title": "Cdi Monthly",
+     "type": "array"
     },
     "selic_monthly_legacy": {
      "description": "Selic mensal usada pelo LEGADO (Dashboard!L20:L31), com mês e ano",

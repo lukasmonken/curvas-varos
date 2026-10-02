@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"  # 1.1: realized.cdi_monthly
 
 
 class _Model(BaseModel):
@@ -48,7 +48,10 @@ class Alert(_Model):
 class Metadata(_Model):
     as_of_date: date = Field(description="Data-base única da execução (t0)")
     code_version: str
-    git_commit: str | None = Field(description="Hash do commit que gerou a saída")
+    git_commit: str | None = Field(
+        description='Hash do commit que gerou a saída ("-dirty" no fim: havia alterações '
+        "locais fora de data/)"
+    )
     schema_version: str = SCHEMA_VERSION
     default_mode: Literal["corrected", "legacy"] = "corrected"
 
@@ -140,6 +143,13 @@ class RealizedOut(_Model):
     ipca_rule: str = Field(description="Regra aplicada ao IPCA ainda não divulgado (E8.6)")
     ipca15_used: MonthlyValue | None
     cdi: CdiRealized
+    cdi_monthly: list[MonthlyValue] = Field(
+        default_factory=list,
+        description=(
+            "CDI realizado por mês do ano corrente, em % no mês, composto do CDI diário "
+            "(SGS 12) de 1º/jan até a véspera de t0. O mês de t0 é parcial."
+        ),
+    )
     selic_monthly_legacy: list[MonthlyValue] = Field(
         description="Selic mensal usada pelo LEGADO (Dashboard!L20:L31), com mês e ano"
     )

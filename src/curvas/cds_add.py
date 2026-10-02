@@ -4,7 +4,9 @@
         --valores "45.67 54.35 67.89 87.28 109.84 130.71 171.71 213.22 245.59"
 
 Os 9 valores são, nesta ordem, os vértices 6M 1A 2A 3A 4A 5A 7A 10A 20A, em bps,
-como aparecem no site. Sem ``--valores``, o comando pergunta um por um. As linhas
+como aparecem no site, separados por espaço; o decimal pode ser vírgula ou ponto
+("45,67" ou "45.67"). Sem ``--valores``, o comando pergunta um por um. No GitHub,
+o workflow ``cds`` (aba Actions) roda este comando pelo navegador. As linhas
 novas passam pela mesma validação do pipeline antes de entrar no arquivo; nada é
 gravado se algo estiver errado. Para corrigir um dia já gravado, rode de novo com
 os valores certos: a linha mais recente vale (``preenchido_em`` posterior).
@@ -78,27 +80,28 @@ def append_cds(
     return len(VERTEX_DAYS)
 
 
+def _number(text: str) -> float:
+    """Um valor em bps; vírgula ou ponto como decimal ("45,67" = "45.67")."""
+    return float(text.strip().replace(",", "."))
+
+
 def _ask(prompt: Callable[[str], str]) -> list[float]:
-    values = []
-    for vertex in VERTEX_DAYS:
-        raw = prompt(f"CDS {vertex} (bps): ").strip().replace(",", ".")
-        values.append(float(raw))
-    return values
+    return [_number(prompt(f"CDS {vertex} (bps): ")) for vertex in VERTEX_DAYS]
 
 
 def main(argv: list[str] | None = None, prompt: Callable[[str], str] = input) -> int:
     parser = argparse.ArgumentParser(prog="python -m curvas.cds_add", description=__doc__)
     parser.add_argument("--data", type=date.fromisoformat, required=True, help="AAAA-MM-DD")
     parser.add_argument("--por", required=True, help="quem está preenchendo")
-    parser.add_argument("--valores", help="9 números em bps, separados por espaço")
+    parser.add_argument(
+        "--valores", help="9 números em bps, separados por espaço (decimal: vírgula ou ponto)"
+    )
     parser.add_argument("--fonte", default=DEFAULT_SOURCE)
     parser.add_argument("--arquivo", type=Path, default=DEFAULT_PATH)
     args = parser.parse_args(argv)
     try:
         values = (
-            [float(v.replace(",", ".")) for v in args.valores.split()]
-            if args.valores
-            else _ask(prompt)
+            [_number(v) for v in args.valores.split()] if args.valores is not None else _ask(prompt)
         )
         n = append_cds(args.arquivo, args.data, values, filled_by=args.por, source=args.fonte)
     except (ManualCdsError, ValueError) as exc:

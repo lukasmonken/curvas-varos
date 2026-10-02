@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Premissas anuais</h1>
+    <p class="lead">DI, inflação implícita{% if show_cds %}, CDS, juro real e taxa de desconto{% else %} e juro real{% endif %} por ano civil, de {{ first_year }} a {{ last_year }}, calculados no pipeline a partir das fontes do dia.</p>
+  </div>
+  <div class="t0">
+    <span class="label">Data-base (t0)</span>
+    <span class="value">{{ ov.t0 }}</span>
+  </div>
+</div>
+
+<ul class="summary small" aria-label="Resumo">
+  <li><span class="badge {{ 'stale' if ov.stale_count else 'ok' }}">{% if ov.stale_count %}{{ ov.stale_count }} fonte{{ 's' if ov.stale_count > 1 }} defasada{{ 's' if ov.stale_count > 1 }}{% else %}Todas as fontes atuais{% endif %}</span></li>
+  <li><span class="badge {{ 'warning' if ov.alerts else 'ok' }}">{{ ov.alerts|length }} alerta{{ 's' if ov.alerts|length != 1 }}</span></li>
+</ul>
+
+{% for table in ov.tables %}
+<section class="card only-{{ table.mode }}" aria-labelledby="taxas-{{ table.mode }}">
+  <div class="card-head">
+    <h2 id="taxas-{{ table.mode }}">Taxas por ano civil</h2>
+    <span class="mode-tag">{{ table.label }}</span>
+  </div>
+  <div class="table-wrap" tabindex="0" role="region" aria-labelledby="taxas-{{ table.mode }}">
+    <table>
+      <thead>
+        <tr><th scope="col">Ano</th>{% for col in ov.columns %}<th scope="col">{{ col.label }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+{% for row in table.rows %}
+        <tr{% if row.css %} class="{{ row.css }}"{% endif %}><th scope="row">{{ row.head }}</th>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% for note in table.notes %}
+  <p class="muted small">{{ note }}</p>
+{% endfor %}
+{% if table.details %}
+  <dl class="facts">
+{% for item in table.details %}
+    <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
+{% endfor %}
+  </dl>
+{% endif %}
+</section>
+{% endfor %}
+{% if not show_cds %}
+<p class="note">Os valores de CDS e da taxa de desconto (que depende do CDS) não são exibidos neste site (Q17). Os links para a coleta manual estão em <a href="cds.html">Coleta do CDS</a>.</p>
+{% endif %}
+
+<section class="card" aria-labelledby="comparacao">
+  <div class="card-head">
+    <h2 id="comparacao">CORRIGIDO − LEGADO</h2>
+    <span class="muted small">em bps</span>
+  </div>
+  <div class="table-wrap" tabindex="0" role="region" aria-labelledby="comparacao">
+    <table>
+      <thead>
+        <tr><th scope="col">Ano</th>{% for col in ov.columns %}<th scope="col">{{ col.label }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+{% for row in ov.comparison %}
+        <tr><th scope="row">{{ row.head }}</th>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted small">A <a href="metodologia.html">metodologia</a> explica de onde vêm as diferenças.</p>
+</section>
+
+<section class="card" aria-labelledby="alertas">
+  <h2 id="alertas">Alertas</h2>
+{% if ov.alerts %}
+  <ul class="alerts">
+{% for a in ov.alerts %}
+    <li class="{{ a.level }}"><span class="badge {{ a.level }}">{{ a.level_text }}</span> {{ a.message }}{% if a.source %}<span class="meta">{{ a.source }}</span>{% endif %}</li>
+{% endfor %}
+  </ul>
+{% else %}
+  <p class="muted">Nenhum alerta nesta data-base.</p>
+{% endif %}
+</section>
+
+<section class="card" aria-labelledby="fontes">
+  <h2 id="fontes">Fontes</h2>
+  <div class="table-wrap" tabindex="0" role="region" aria-labelledby="fontes">
+    <table>
+      <thead>
+        <tr><th scope="col">Fonte</th><th scope="col">Status</th><th scope="col">Data do dado</th><th scope="col">Divulgação</th><th scope="col" class="text">Motivo do fallback</th></tr>
+      </thead>
+      <tbody>
+{% for s in ov.sources %}
+        <tr><th scope="row" class="text">{{ s.label }}</th><td><span class="badge {{ s.status }}">{{ s.status_text }}</span></td><td>{{ s.data_date }}</td><td>{{ s.publication }}</td><td class="text">{{ s.reason }}</td></tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if downloads %}
+<section class="card" aria-labelledby="downloads">
+  <h2 id="downloads">Downloads</h2>
+  <ul class="downloads">
+{% for d in downloads %}
+    <li><a href="{{ d.href }}" download>{{ d.label }}</a></li>
+{% endfor %}
+  </ul>
+  <p class="muted small">CSV: os dois modos, taxas em decimal ao ano, com ponto decimal e precisão total. XLSX: o layout do Dashboard da planilha com o LEGADO do dia, mais o CORRIGIDO e as fontes, só com valores.{% if not show_cds %} Sem CDS e sem taxa de desconto (Q17).{% endif %}</p>
+</section>
+{% endif %}
+{% endblock %}

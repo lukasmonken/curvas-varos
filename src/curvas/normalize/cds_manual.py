@@ -105,9 +105,12 @@ def parse_manual_cds(
     """Lê e valida o arquivo. Para corrigir um valor, acrescente uma linha nova com o
     mesmo dia e vértice e um ``preenchido_em`` posterior: ela substitui a anterior."""
     reader = csv.DictReader(ln for ln in lines if ln.strip() and not ln.startswith("#"))
-    if reader.fieldnames != COLUMNS:
-        raise ManualCdsError(f"cabeçalho esperado {COLUMNS}, veio {reader.fieldnames}")
-    quotes = [_quote(row, i, calendar) for i, row in enumerate(reader, start=1)]
+    try:
+        if reader.fieldnames != COLUMNS:
+            raise ManualCdsError(f"cabeçalho esperado {COLUMNS}, veio {reader.fieldnames}")
+        quotes = [_quote(row, i, calendar) for i, row in enumerate(reader, start=1)]
+    except UnicodeDecodeError as exc:  # arquivo salvo fora do cds_add (ex.: Excel no Windows)
+        raise ManualCdsError(f"arquivo do CDS manual não está em UTF-8: {exc}") from exc
     seen: dict[tuple[date, str], CdsQuote] = {}
     for q in quotes:
         prev = seen.get((q.reference_date, q.vertex))

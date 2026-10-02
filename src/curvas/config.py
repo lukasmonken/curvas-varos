@@ -25,6 +25,22 @@ class Urls:
     anbima_ettj_download: str = "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp"
     bcb_sgs: str = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{code}/dados"
     ibge_calendario: str = "https://servicodados.ibge.gov.br/api/v3/calendario/"
+    # Abas do Investing.com por vértice do CDS, como em Dashboard!J9:J17. Só links para a
+    # coleta manual (Q16, Q17): o pipeline nunca baixa estas páginas.
+    investing_cds: tuple[tuple[str, str], ...] = tuple(
+        (label, f"https://br.investing.com/rates-bonds/brazil-cds-{slug}-usd-historical-data")
+        for label, slug in (
+            ("6M", "6-months"),
+            ("1A", "1-year"),
+            ("2A", "2-years"),
+            ("3A", "3-years"),
+            ("4A", "4-years"),
+            ("5A", "5-years"),
+            ("7A", "7-years"),
+            ("10A", "10-years"),
+            ("20A", "20-years"),
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -58,6 +74,15 @@ class AlertConfig:
 
 
 @dataclass(frozen=True)
+class SiteConfig:
+    """Site público (seção 14). Tokens visuais em ``site/static/tokens.css`` (Q5)."""
+
+    # Q17: o jurídico pode pedir que os valores de CDS (e a taxa de desconto, que
+    # depende deles) saiam do site. False esconde tudo isso; os links de coleta ficam.
+    show_cds_values: bool = True
+
+
+@dataclass(frozen=True)
 class Config:
     # Primeiro t0 do pipeline (o CDS manual começa em 29/09/2026): o modo de
     # recuperação não tenta datas anteriores, que nunca teriam CDS.
@@ -67,6 +92,7 @@ class Config:
     sgs: SgsSeries = field(default_factory=SgsSeries)
     ranges: PlausibleRanges = field(default_factory=PlausibleRanges)
     alerts: AlertConfig = field(default_factory=AlertConfig)
+    site: SiteConfig = field(default_factory=SiteConfig)
 
 
 DEFAULT = Config()

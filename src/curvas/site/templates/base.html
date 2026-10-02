@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR" data-mode="{{ default_mode }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} · Curvas VAROS</title>
+<meta name="description" content="Curvas VAROS: DI, inflação implícita e CDS em premissas anuais, nos modos CORRIGIDO e LEGADO.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script>try{var m=localStorage.getItem("curvas-modo");if(m==="corrected"||m==="legacy")document.documentElement.setAttribute("data-mode",m)}catch(e){}</script>
+<script src="assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+<header class="site-header">
+  <div class="bar">
+    <a class="brand" href="index.html" aria-label="VAROS Curvas, visão geral">
+      <span class="wordmark">VAROS</span><span class="product">Curvas</span>
+    </a>
+    <nav class="nav" aria-label="Principal">
+      <ul>
+{% for item in nav %}
+        <li><a href="{{ item.href }}"{% if item.href == page %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+{% endfor %}
+      </ul>
+    </nav>
+{% if mode_toggle %}
+    <div class="seg" role="group" aria-label="Modo de cálculo">
+{% for mode, label in modes %}
+      <button type="button" data-set-mode="{{ mode }}" aria-pressed="{{ 'true' if mode == default_mode else 'false' }}">{{ label|capitalize }}</button>
+{% endfor %}
+    </div>
+{% endif %}
+  </div>
+</header>
+<main id="conteudo">
+{% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+  <div class="bar">
+    <p>Data-base (t0): {{ t0 }}. Fontes: ANBIMA (ETTJ), BCB (SGS), IBGE (agenda de divulgações). CDS: cópia manual do Investing.com.</p>
+    <p>Todos os números são calculados no pipeline em Python; esta página só os exibe. curvas {{ code_version }}{% if commit %} · commit {{ commit }}{% endif %} · schema {{ schema_version }}.</p>
+  </div>
+</footer>
+</body>
+</html>

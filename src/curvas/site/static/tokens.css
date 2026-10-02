@@ -1,0 +1,18 @@
+/* Tokens de cor e fonte do site (Q5). Única fonte: charts.THEME espelha estes valores
+   e tests/test_site.py confere os dois. */
+:root {
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --bg: #131313;
+  --surface: #1C1D1F;
+  --text: #E2E5EB;
+  --text-2: #878D96;
+  --axis: #C6CAD2;
+  --series-1: #12D8B2;
+  --series-2: #43AF43;
+  --series-3: #239B84;
+  --series-4: #296055;
+  --ok: #43AF43;
+  --stale: #E0A526;
+  --error: #E5534B;
+}

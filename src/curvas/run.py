@@ -48,7 +48,13 @@ from curvas.normalize.anbima_ettj import (
 )
 from curvas.normalize.bcb_sgs import monthly_by_reference, parse_sgs
 from curvas.normalize.cds_manual import DEFAULT_PATH as CDS_MANUAL_PATH
-from curvas.normalize.cds_manual import CdsSnapshot, ManualCdsError, load_cds
+from curvas.normalize.cds_manual import (
+    CdsSnapshot,
+    ManualCdsError,
+    cds_snapshot,
+    load_cds,
+    parse_manual_cds,
+)
 from curvas.normalize.corrected_inputs import build_corrected_inputs
 from curvas.normalize.ibge import IPCA15_TITLE, parse_ipca_releases
 from curvas.normalize.legacy_inputs import build_legacy_inputs
@@ -374,15 +380,25 @@ def _cdi_with_fill(
 
 
 def _git_commit() -> str | None:
-    if os.environ.get("GITHUB_SHA"):
-        return os.environ["GITHUB_SHA"]
+    """Commit do código em uso, com ``-dirty`` se há alterações fora de ``data/``.
+
+    No GitHub, o daily faz o checkout da ponta do branch no início do job, que pode ser
+    posterior ao ``GITHUB_SHA`` do disparo; o ``GITHUB_SHA`` fica só para quando o git
+    não responde.
+    """
+
+    def git(*args: str) -> str:
+        cmd = ["git", *args]
+        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=True).stdout
+
     try:
-        out = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
-        )
+        head = git("rev-parse", "HEAD").strip()
+        dirty = git("status", "--porcelain", "--", ".", ":(exclude)data").strip()
     except (OSError, subprocess.CalledProcessError):
-        return None
-    return out.stdout.strip() or None
+        return os.environ.get("GITHUB_SHA") or None
+    if not head:
+        return os.environ.get("GITHUB_SHA") or None
+    return f"{head}-dirty" if dirty else head
 
 
 def _previous_output(curves_dir: Path, as_of: date, cal: BusinessCalendar) -> dict[str, Any] | None:
@@ -447,6 +463,7 @@ def _compute(
             legacy_daily=legacy_daily,
             legacy=compute_legacy(legacy_daily.inputs),
             cdi=cdi,
+            cdi_days=cal.business_days_list(date(as_of.year, 1, 1), as_of),
             cdi_last_observed=max(observed) if observed else None,
             ipca=ipca,
             selic=selic,
@@ -455,10 +472,16 @@ def _compute(
         )
     except (ValueError, ArithmeticError) as exc:
         raise BlockingError(f"cálculo: {type(exc).__name__}: {exc}") from exc
-    # Seção 7: data de divulgação do IPCA e do IPCA-15 usados (agenda do IBGE, Q9).
+    # Seção 7: data de divulgação do IPCA e do IPCA-15 usados (agenda do IBGE, Q9). A data
+    # do dado do SGS 433 passa a ser o mês desse IPCA, e não a última observação do bruto:
+    # um dia reprocessado depois da divulgação seguinte (recuperação) já traz o mês novo.
+    last_ipca = corrected_inputs.ipca_last_published
     ipca_src = sources["bcb_sgs_433"]
     ipca_src.record = ipca_src.record.model_copy(
-        update={"publication_date": corrected_inputs.ipca_last_release_date}
+        update={
+            "source_date": None if last_ipca is None else date(*last_ipca, 1),
+            "publication_date": corrected_inputs.ipca_last_release_date,
+        }
     )
     if corrected_inputs.ipca15_used is not None:
         src15 = sources["bcb_sgs_7478"]
@@ -542,12 +565,42 @@ def run(
 ANBIMA_WINDOW = 5  # a página pública da ANBIMA só guarda os últimos 5 dias úteis
 
 
-def _needs_run(path: Path) -> bool:
-    """Sem saída, ou saída publicada com a ETTJ de outro dia (stale): refazer."""
+def _needs_run(path: Path, cds_now: SourceRecord | None = None) -> bool:
+    """Refazer se não há saída, se ela usou a ETTJ de outro dia (stale) ou se o CDS
+    manual que vale agora para t0 (``cds_now``) não é o que ela usou: alguém lançou ou
+    corrigiu o CDS depois da execução (ex.: saída com CDS defasado e o do dia já no
+    arquivo). ``cds_now = None``: arquivo ilegível, nada a comparar."""
     if not path.exists():
         return True
     out = json.loads(path.read_text("utf-8"))
-    return any(s["source"] == "anbima_ettj" and s["stale"] for s in out["sources"])
+    if any(s["source"] == "anbima_ettj" and s["stale"] for s in out["sources"]):
+        return True
+    if cds_now is None:
+        return False
+    used = next((s for s in out["sources"] if s["source"] == "cds_manual"), None)
+    now = cds_now.model_dump(mode="json")
+    return used is None or any(used[k] != now[k] for k in ("source_date", "publication_date"))
+
+
+def _cds_records(paths: Paths, cal: BusinessCalendar) -> Callable[[date], SourceRecord | None]:
+    """Registro do CDS manual que ``load_cds`` daria hoje para cada t0 (o arquivo é lido
+    uma vez). Arquivo ilegível ou sem conjunto completo: ``None`` (o próprio run acusa)."""
+    try:
+        with paths.manual_cds.open(encoding="utf-8") as fh:
+            quotes = parse_manual_cds(fh, cal)
+    except (ManualCdsError, OSError) as exc:
+        log.warning("CDS manual ilegível na recuperação", extra={"error": str(exc)})
+        quotes = None
+
+    def record(as_of: date) -> SourceRecord | None:
+        if quotes is None:
+            return None
+        try:
+            return cds_snapshot(quotes, as_of, path=paths.manual_cds).record
+        except ManualCdsError:
+            return None
+
+    return record
 
 
 def pending_dates(
@@ -560,10 +613,12 @@ def pending_dates(
         if cal.is_business_day(day):
             window.append(day)
         day -= timedelta(days=1)
+    cds_now = _cds_records(paths, cal)
     return sorted(
         d
         for d in window
-        if (start is None or d >= start) and _needs_run(paths.curves_dir / f"{d:%Y-%m-%d}.json")
+        if (start is None or d >= start)
+        and _needs_run(paths.curves_dir / f"{d:%Y-%m-%d}.json", cds_now(d))
     )
 
 
@@ -588,6 +643,8 @@ def catch_up(
     O agendamento do GitHub atrasa e às vezes descarta execuções; por isso cada
     execução processa todos os dias úteis pendentes dentro da janela da ANBIMA. Dia
     sem ETTJ publicada fica para a próxima execução (nunca sai como dado defasado).
+    Também refaz o dia cujo CDS manual foi lançado ou corrigido depois da execução
+    (``.github/workflows/cds.yml`` dispara esta recuperação logo após gravar o CDS).
     """
     cal = load_anbima_calendar(paths.holidays) if paths.holidays else load_anbima_calendar()
     today = today or datetime.now(BRT).date()

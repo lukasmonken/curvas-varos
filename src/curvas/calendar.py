@@ -99,3 +99,12 @@ def load_anbima_calendar(path: Path = DEFAULT_HOLIDAYS_CSV) -> BusinessCalendar:
     if first_year is None or last_year is None:
         raise ValueError(f"arquivo de feriados vazio: {path}")
     return BusinessCalendar(frozenset(holidays), date(first_year, 1, 1), date(last_year, 12, 31))
+
+
+def t0_eve(t0: date) -> date:
+    """Véspera de t0 para exibição: o dia útil ANBIMA anterior (Q11-B), último dia do CDI
+    realizado; fora da cobertura do arquivo de feriados, o dia corrido anterior."""
+    try:
+        return load_anbima_calendar().preceding(t0 - timedelta(days=1))
+    except CalendarRangeError:
+        return t0 - timedelta(days=1)

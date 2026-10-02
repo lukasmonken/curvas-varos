@@ -178,3 +178,32 @@ def test_cds_add_cli_interativo(tmp_path: Path) -> None:
     )
     assert rc == 0
     assert load_cds(date(2026, 10, 1), path=target).bps == tuple(VALUES)
+
+
+def test_cds_add_cli_valores_com_virgula_decimal(tmp_path: Path) -> None:
+    """Como no Investing.com em português e no formulário do workflow ``cds``."""
+    target = tmp_path / "cds.csv"
+    texto = "45,67 54.35 67,89 87,28 109,84 130,71 171,71 213,22 245,59"
+    rc = main(
+        ["--data", "2026-10-01", "--por", "fulano", "--arquivo", str(target), "--valores", texto]
+    )
+    assert rc == 0
+    snap = load_cds(date(2026, 10, 1), path=target)
+    assert snap.bps == (45.67, 54.35, 67.89, 87.28, 109.84, 130.71, 171.71, 213.22, 245.59)
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "45,67,54,35,67,89,87,28,109,84,130,71,171,71,213,22,245,59",  # vírgula como separador
+        "45.67 54.35",  # faltam vértices
+        "",
+    ],
+)
+def test_cds_add_cli_valores_invalidos_nao_gravam(tmp_path: Path, texto: str) -> None:
+    target = tmp_path / "cds.csv"
+    rc = main(
+        ["--data", "2026-10-01", "--por", "fulano", "--arquivo", str(target), "--valores", texto]
+    )
+    assert rc == 1
+    assert not target.exists()

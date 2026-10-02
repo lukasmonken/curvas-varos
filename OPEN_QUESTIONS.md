@@ -8,7 +8,7 @@ Status: `ABERTA` até resposta explícita. Coluna "Bloqueia" indica a primeira f
 | Q2 | Fonte do CDS (diagnóstico antes de qualquer scraper) | F3 | RESOLVIDA: manual (`data/manual/cds.csv`) + cotação à Cbonds; sem coletor do Investing |
 | Q3 | Repositório público ou privado | F4 | RESOLVIDA: repositório e site públicos (GitHub Free) |
 | Q4 | Convenção da taxa de desconto (DI + CDS) | F4 | RESOLVIDA: composição (1 + DI)(1 + CDS) − 1 |
-| Q5 | Identidade visual: fontes, logo, paleta completa | F5 | PARCIAL |
+| Q5 | Identidade visual: fontes, logo, paleta completa | F5 | RESOLVIDA: Instrument Sans; logo = "VAROS" em texto; tema escuro da paleta |
 | Q6 | LEGADO (b): como derivar mês e trimestre de t0 | F4 | RESOLVIDA: m = último IPCA divulgado até t0; trimestre de m |
 | Q7 | Recálculo de referência: aceitar o motor `formulas` no lugar do LibreOffice | F1 | RESOLVIDA (01/10/2026) |
 | Q8 | Data-base (t0) dos inputs da planilha para o CORRIGIDO | F2 | RESOLVIDA: t0 = 29/09/2026 (refazer a F2 com o efeito do erro do DI à parte) |
@@ -20,7 +20,7 @@ Status: `ABERTA` até resposta explícita. Coluna "Bloqueia" indica a primeira f
 | Q14 | Erro de colagem na curva de DI da planilha (E6.12) | F3 | RESOLVIDA: LEGADO (a) reproduz como está; F2 mostra o efeito à parte; diário sem o erro |
 | Q15 | Composição das curvas a partir da ANBIMA (LEGADO b e CORRIGIDO) | F4 | RESOLVIDA: LEGADO como o operador (sem o erro); CORRIGIDO só vértices publicados |
 | Q16 | CDS diário, gratuito e automático | — | ABERTA (meta; ver texto) |
-| Q17 | CDS copiado do Investing.com num repositório público | F5 | ABERTA (jurídico) |
+| Q17 | CDS copiado do Investing.com num repositório público | — | PARCIAL: site com os links de cada vértice e coleta manual; exibir os valores segue em aberto (jurídico) |
 | Q18 | CDI do SGS atrasado na véspera de t0 | — | PROVISÓRIO: repetir a última taxa, com alerta |
 | Q19 | ANBIMA vai desligar a aba das curvas (download CZ-down.asp) | — | RISCO: monitorar |
 
@@ -183,6 +183,24 @@ Caminhos legítimos, em ordem:
 ## Q17. CDS do Investing.com num repositório público
 
 Com a Q3 (repositório público), `data/manual/cds.csv` e o JSON publicado expõem valores copiados do Investing.com. A §14 dos termos veda exibir esses dados em site sem permissão. Precisa de parecer jurídico ou da autorização da Q16-1 antes da publicação (F5). Enquanto isso, o pipeline continua usando o arquivo manual normalmente.
+
+## Decisões de 02/10/2026 (início da F5)
+
+- **Q5:** fonte **Instrument Sans**; logo = a palavra "VAROS" em texto, nessa fonte (sem logo gráfico); **tema escuro** derivado da paleta dos gráficos:
+
+  | Token | Cor |
+  |---|---|
+  | fundo | `#131313` |
+  | superfície | `#1C1D1F` |
+  | texto | `#E2E5EB` |
+  | secundário | `#878D96` |
+  | eixos | `#C6CAD2` |
+  | séries | `#12D8B2`, `#43AF43`, `#239B84`, `#296055` |
+  | ok (fonte atual) | `#43AF43` |
+  | defasado | `#E0A526` (âmbar) |
+  | erro | `#E5534B` (vermelho) |
+
+- **Q17 (parcial):** o site mostra, ao lado de cada vértice do CDS, o link da aba do Investing.com, como em `Dashboard!J9:J17`. A pessoa abre a aba e pega o valor manualmente, como fazia na planilha. Linkar a página é livre; o link não muda a §14 dos termos, que veda exibir os valores sem permissão. Por isso o site tem uma chave única para esconder os valores de CDS (e a taxa de desconto, que depende deles) caso o jurídico peça, sem mexer no resto. Até lá, a decisão de ligar o Pages com os valores é da VAROS.
 
 ## Q18. CDI do SGS atrasado (regra operacional provisória, 02/10/2026)
 

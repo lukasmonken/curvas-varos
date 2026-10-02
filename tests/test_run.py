@@ -4,9 +4,10 @@ import csv
 import dataclasses
 import json
 import math
+import subprocess
 import zipfile
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
@@ -17,6 +18,7 @@ import pytest
 import curvas.run as run_module
 from conftest import ROOT
 from curvas.calendar import load_anbima_calendar
+from curvas.cds_add import append_cds
 from curvas.config import DEFAULT, AlertConfig
 from curvas.engine.legacy import compute_legacy
 from curvas.fetch.http import FetchError
@@ -25,6 +27,7 @@ from curvas.fetch.sources import fetch_sgs
 from curvas.models import RunOutput
 from curvas.normalize.anbima_ettj import parse_anbima_ettj
 from curvas.normalize.legacy_inputs import build_legacy_inputs
+from curvas.output.json_out import hide_cds_change
 from curvas.run import BlockingError, Paths, catch_up, main, pending_dates, run, write_output
 from curvas.schema import SCHEMA_PATH, schema_text
 from curvas.site.build import build
@@ -75,6 +78,17 @@ def client(overrides: dict[str, bytes] | None = None) -> httpx.Client:
 
 def paths(tmp: Path, name: str = "out") -> Paths:
     return Paths(raw_root=tmp / "raw", out_root=tmp / name, manual_cds=CDS_FIXTURE)
+
+
+CDS_DIA = [46.0, 55.0, 68.0, 88.0, 110.0, 131.0, 172.0, 214.0, 246.0]
+LATER = datetime(2026, 10, 1, 23, 0, tzinfo=UTC)  # depois de todo preenchimento do fixture
+
+
+def cds_copy(tmp: Path) -> Paths:
+    """Paths com uma cópia gravável do CDS manual congelado."""
+    target = tmp / "cds.csv"
+    target.write_text(CDS_FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
+    return dataclasses.replace(paths(tmp), manual_cds=target)
 
 
 def go(tmp: Path, as_of: date, **kw: Any) -> RunOutput:
@@ -237,6 +251,14 @@ class TestBloqueiosEAlertas:
         changes = [a for a in out.alerts if a.code == "variacao_diaria"]
         assert changes
         assert "desde 2026-09-29" in changes[0].message
+        # Q17: o site e os downloads reconhecem esta mensagem e tiram o valor do CDS/desconto.
+        assert any(a.message.split()[1] == "discount" for a in changes)
+        for a in changes:
+            hidden = hide_cds_change(a).message
+            if a.message.split()[1] in ("cds", "discount"):
+                assert hidden.endswith(": variação acima do limite"), a.message
+            else:
+                assert hidden == a.message
 
     def test_latest_nao_regride(self, tmp_path: Path) -> None:
         go(tmp_path, date(2026, 9, 30))
@@ -306,15 +328,14 @@ def test_write_output_grava_por_data(tmp_path: Path) -> None:
     assert RunOutput.model_validate_json(target.read_text()) == out
 
 
-def test_site_provisorio(tmp_path: Path) -> None:
+def test_site_a_partir_da_saida(tmp_path: Path) -> None:
     go(tmp_path, T0)
-    index = build(tmp_path / "site", tmp_path / "out")
-    text = index.read_text()
-    assert "Data-base: 2026-09-29" in text
-    assert text.count("<tr><th>20") == 11
-    assert (tmp_path / "site" / "latest.json").read_text() == (
+    index = build(tmp_path / "site", tmp_path / "out", show_cds=True, env={})
+    assert "29/09/2026" in index.read_text(encoding="utf-8")
+    assert (tmp_path / "site" / "latest.json").read_bytes() == (
         tmp_path / "out" / "latest.json"
-    ).read_text()
+    ).read_bytes()
+    assert (tmp_path / "site" / "downloads" / "curvas-2026-09-29.xlsx").is_file()
 
 
 class TestRecuperacao:
@@ -372,6 +393,58 @@ class TestRecuperacao:
             date(2026, 9, 28),
         }
         assert all("CDS manual" in why for _, why in res.blocked)
+
+    def test_cds_lancado_depois_refaz_o_dia(self, tmp_path: Path) -> None:
+        """Saída com CDS defasado; o CDS do dia entra no arquivo depois (cds.yml): refazer."""
+        p = cds_copy(tmp_path)
+        cal = load_anbima_calendar()
+        day = date(2026, 9, 30)
+        go(tmp_path, T0, p=p)
+        before = go(tmp_path, day, p=p)
+        assert next(s for s in before.sources if s.source == "cds_manual").stale
+        assert pending_dates(day, p, cal, T0) == []  # arquivo sem novidade: nada a refazer
+        append_cds(p.manual_cds, day, CDS_DIA, filled_by="fulano", filled_at=LATER)
+        assert pending_dates(day, p, cal, T0) == [day]  # o 29/09 continua como estava
+        res = catch_up(today=day, client=client(), paths=p, git_commit=COMMIT)
+        assert [r.as_of for r in res.published] == [day]
+        after = res.published[0].output
+        assert after is not None
+        cds = next(s for s in after.sources if s.source == "cds_manual")
+        assert not cds.stale
+        assert cds.source_date == day
+        assert after.inputs.legacy.cds_bps == CDS_DIA
+        assert not any(a.code == "cds_manual" for a in after.alerts)
+        assert pending_dates(day, p, cal, T0) == []
+
+    def test_cds_corrigido_depois_refaz_o_dia(self, tmp_path: Path) -> None:
+        """Correção (mesmo dia, ``preenchido_em`` posterior) também refaz a saída."""
+        p = cds_copy(tmp_path)
+        cal = load_anbima_calendar()
+        first = go(tmp_path, T0, p=p)
+        assert pending_dates(T0, p, cal, T0) == []
+        fixed = [*first.inputs.legacy.cds_bps]
+        fixed[5] = 99.5
+        append_cds(p.manual_cds, T0, fixed, filled_by="beltrano", filled_at=LATER)
+        assert pending_dates(T0, p, cal, T0) == [T0]
+        res = catch_up(today=T0, client=client(), paths=p, git_commit=COMMIT)
+        assert [r.as_of for r in res.published] == [T0]
+        after = res.published[0].output
+        assert after is not None
+        assert after.inputs.legacy.cds_bps == fixed
+        assert pending_dates(T0, p, cal, T0) == []
+
+    def test_cds_de_outro_dia_nao_refaz(self, tmp_path: Path) -> None:
+        p = cds_copy(tmp_path)
+        cal = load_anbima_calendar()
+        go(tmp_path, T0, p=p)
+        go(tmp_path, date(2026, 9, 30), p=p)  # CDS defasado (de 29/09)
+        append_cds(p.manual_cds, date(2026, 10, 1), CDS_DIA, filled_by="x", filled_at=LATER)
+        assert pending_dates(date(2026, 10, 1), p, cal, T0) == [date(2026, 10, 1)]
+
+    def test_cds_ilegivel_nao_derruba_a_recuperacao(self, tmp_path: Path) -> None:
+        go(tmp_path, T0)
+        p = dataclasses.replace(paths(tmp_path), manual_cds=tmp_path / "nao_existe.csv")
+        assert pending_dates(T0, p, load_anbima_calendar(), T0) == []
 
 
 def test_bcb_html_com_status_200_e_repetido() -> None:
@@ -507,3 +580,54 @@ class TestRevisaoF4:
         assert anbima.content == b"anbima"
         assert sgs is not None
         assert sgs.content == b"sgs"
+
+
+class TestRevisaoF5:
+    """Achados da revisão adversarial da F5."""
+
+    def test_ipca_reprocessado_depois_da_divulgacao_seguinte(self, tmp_path: Path) -> None:
+        """Bruto do SGS 433 já com setembro (dia refeito depois de ~09/10): a data do dado
+        é a do IPCA usado (agosto), o mesmo que a data de divulgação descreve."""
+        rows = [*json.loads(SGS_FILES["433"].read_text()), {"data": "01/09/2026", "valor": "0.48"}]
+        out = go(tmp_path, T0, client=client({"sgs:433": json.dumps(rows).encode()}))
+        ipca = next(s for s in out.sources if s.source == "bcb_sgs_433")
+        assert out.realized.ipca_monthly[-1].month == 8
+        assert ipca.source_date == date(2026, 8, 1)  # antes: 01/09, a última do bruto
+        assert ipca.publication_date == date(2026, 9, 11)
+
+    def test_commit_do_codigo_em_uso(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """HEAD do git (o checkout do daily é a ponta do branch), com -dirty se há
+        alteração fora de data/; o GITHUB_SHA do disparo só sem git."""
+        status = ""
+
+        def fake(cmd: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            if cmd[1] == "rev-parse":
+                return subprocess.CompletedProcess(cmd, 0, stdout="abc123\n")
+            assert ":(exclude)data" in cmd
+            return subprocess.CompletedProcess(cmd, 0, stdout=status)
+
+        monkeypatch.setenv("GITHUB_SHA", "sha_do_disparo")
+        monkeypatch.setattr(run_module.subprocess, "run", fake)
+        assert run_module._git_commit() == "abc123"
+        status = " M src/curvas/run.py\n"
+        assert run_module._git_commit() == "abc123-dirty"
+
+        def broken(cmd: list[str], **_kw: Any) -> Any:
+            raise OSError("sem git")
+
+        monkeypatch.setattr(run_module.subprocess, "run", broken)
+        assert run_module._git_commit() == "sha_do_disparo"
+        monkeypatch.delenv("GITHUB_SHA")
+        assert run_module._git_commit() is None
+
+    def test_cds_fora_de_utf8_bloqueia_com_mensagem(self, tmp_path: Path) -> None:
+        """cds.csv salvo em cp1252 (ex.: pelo Excel): BLOQUEADO com a causa, sem traceback."""
+        go(tmp_path, T0)
+        bad = tmp_path / "cds_cp1252.csv"
+        text = CDS_FIXTURE.read_text(encoding="utf-8")
+        assert text.encode("cp1252") != text.encode("utf-8")  # há acentos (cabeçalho e fonte)
+        bad.write_bytes(text.encode("cp1252"))
+        p = dataclasses.replace(paths(tmp_path), manual_cds=bad)
+        assert pending_dates(T0, p, load_anbima_calendar(), T0) == []
+        with pytest.raises(BlockingError, match=r"CDS manual: .*UTF-8"):
+            run(as_of=T0, offline=True, paths=p, git_commit=COMMIT)

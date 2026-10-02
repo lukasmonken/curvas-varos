@@ -1,0 +1,88 @@
+# CDS manual pelo navegador (Q16, Q17): aba Actions → cds → Run workflow.
+#
+# A pessoa abre as abas do Investing.com de cada vértice (links no site, como em
+# Dashboard!J9:J17), copia os 9 valores e preenche o formulário. O workflow grava
+# com `python -m curvas.cds_add` (mesma validação do pipeline; nada é gravado se
+# algo estiver errado), faz o commit de data/manual/cds.csv e dispara o daily em
+# modo de recuperação, que refaz a data-base se ela estiver na janela de 5 dias
+# úteis da ANBIMA. Para corrigir um dia, basta rodar de novo: a linha mais recente vale.
+#
+# Os inputs chegam aos comandos só por variáveis de ambiente, nunca interpolados
+# no script (evita injeção de comandos pelo formulário).
+#
+# Sem `concurrency`: no GitHub, um grupo guarda no máximo uma execução pendente, e uma
+# terceira cancelaria a pendente (o valor se perderia sem erro, por exemplo ao lançar
+# vários dias em sequência). Execuções simultâneas se resolvem no passo de gravação:
+# o cds_add sempre roda sobre a ponta do branch e, se o push for recusado, tudo é
+# refeito sobre a ponta nova.
+name: cds
+
+on:
+  workflow_dispatch:
+    inputs:
+      data:
+        description: "Data de referência (AAAA-MM-DD)"
+        required: true
+      valores:
+        description: "9 valores em bps, separados por espaço, na ordem 6M 1A 2A 3A 4A 5A 7A 10A 20A (decimal: vírgula ou ponto)"
+        required: true
+      por:
+        description: "Quem está preenchendo (nome, sem vírgula)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  cds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write  # commit de data/manual/cds.csv
+      actions: write  # disparar o daily
+    env:
+      TZ: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Instalar
+        run: uv sync --locked
+
+      - name: Gravar o CDS e fazer o commit de data/manual/cds.csv
+        env:
+          DATA: ${{ inputs.data }}
+          VALORES: ${{ inputs.valores }}
+          POR: ${{ inputs.por }}
+          REF: ${{ github.ref_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for tentativa in 1 2 3 4 5; do
+            # Sempre sobre a ponta do branch, nunca sobre o github.sha do disparo: outra
+            # execução pode ter gravado no meio do caminho. Valor inválido: o cds_add não
+            # grava nada e o passo falha aqui mesmo.
+            git fetch --depth=1 origin "$REF"
+            git reset --hard FETCH_HEAD
+            uv run python -m curvas.cds_add --data "$DATA" --por "$POR" --valores "$VALORES"
+            git add data/manual/cds.csv
+            git commit -m "cds: ${DATA} por ${POR} [skip ci]"
+            if git push origin "HEAD:refs/heads/$REF"; then
+              exit 0
+            fi
+            echo "Push recusado (tentativa $tentativa): refazendo sobre a ponta do branch."
+            sleep $((tentativa * 5))
+          done
+          echo "::error::Não foi possível gravar o CDS depois de 5 tentativas; nada foi gravado."
+          exit 1
+
+      # Só depois de um push bem-sucedido (o passo anterior falha em qualquer outro caso).
+      - name: Disparar o daily (recuperação)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ github.ref_name }}
+        run: gh workflow run daily.yml --ref "$REF"
