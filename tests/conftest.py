@@ -89,6 +89,30 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _gh_escape(text: str, *, prop: bool = False) -> str:
+    out = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    return out.replace(":", "%3A").replace(",", "%2C") if prop else out
+
+
+def pytest_terminal_summary(terminalreporter: Any) -> None:
+    """No GitHub Actions, cada falha vira anotação no resumo da execução.
+
+    O log de um job só abre para quem está logado; as anotações aparecem na página da
+    execução (e na API pública), com o teste e o fim da mensagem de erro.
+    """
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    for report in terminalreporter.stats.get("failed", []) + terminalreporter.stats.get(
+        "error", []
+    ):
+        path, line, _ = report.location
+        tail = " | ".join(str(report.longreprtext).strip().splitlines()[-4:])[:900]
+        terminalreporter.write_line(
+            f"::error file={_gh_escape(path, prop=True)},line={(line or 0) + 1},"
+            f"title={_gh_escape(report.nodeid, prop=True)}::{_gh_escape(tail)}"
+        )
+
+
 @pytest.fixture(scope="session")
 def make_inputs() -> Callable[[dict[str, Any] | None], LegacyInputs]:
     return legacy_inputs

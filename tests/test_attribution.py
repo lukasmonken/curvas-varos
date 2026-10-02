@@ -150,9 +150,20 @@ def test_relatorio_markdown_e_csv() -> None:
 
 
 def test_tabela_publicada_esta_atualizada() -> None:
-    """``docs/f2_legado_x_corrigido.csv`` é exatamente o que o código gera hoje."""
+    """``docs/f2_legado_x_corrigido.csv`` é o que o código gera hoje.
+
+    Mesmas linhas e colunas; números iguais até a última casa que importa. A potência
+    da libm do Linux (CI) pode diferir da do macOS no último bit, e o CSV traz o
+    ``repr`` completo: a comparação exata acusaria isso como tabela desatualizada.
+    """
     published = (ROOT / "docs" / "f2_legado_x_corrigido.csv").read_text(encoding="utf-8")
-    assert published == render_csv(report_oficial())
+    pub = list(csv.reader(io.StringIO(published)))
+    now = list(csv.reader(io.StringIO(render_csv(report_oficial()))))
+    assert pub[0] == now[0]
+    assert [r[:2] for r in pub] == [r[:2] for r in now]
+    for a, b in zip(pub[1:], now[1:], strict=True):
+        assert [float(x) for x in a[2:4]] == pytest.approx([float(x) for x in b[2:4]], abs=1e-14)
+        assert [float(x) for x in a[4:]] == pytest.approx([float(x) for x in b[4:]], abs=2e-6)
     md = (ROOT / "docs" / "F2_LEGADO_X_CORRIGIDO.md").read_text(encoding="utf-8")
     assert md == render_markdown(report_oficial())
 
