@@ -1,0 +1,11 @@
+[
+ {
+  "file": "feriados_nacionais.xls",
+  "source": "anbima_feriados_nacionais",
+  "url": "https://www.anbima.com.br/feriados/arqs/feriados_nacionais.xls",
+  "requested_date": "2026-09-04",
+  "retrieved_at": "2026-10-01T20:03:39+00:00",
+  "sha256": "e3070152bfbdd733a27977adc82b799e973d3ea003d2aa25b0e7e5bdae63aa17",
+  "bytes": 111104
+ }
+]

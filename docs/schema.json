@@ -1,0 +1,890 @@
+{
+ "$defs": {
+  "Alert": {
+   "additionalProperties": false,
+   "properties": {
+    "level": {
+     "enum": [
+      "info",
+      "warning",
+      "error"
+     ],
+     "title": "Level",
+     "type": "string"
+    },
+    "code": {
+     "title": "Code",
+     "type": "string"
+    },
+    "message": {
+     "title": "Message",
+     "type": "string"
+    },
+    "source": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Source"
+    }
+   },
+   "required": [
+    "level",
+    "code",
+    "message"
+   ],
+   "title": "Alert",
+   "type": "object"
+  },
+  "AnnualOut": {
+   "additionalProperties": false,
+   "properties": {
+    "corrected": {
+     "items": {
+      "$ref": "#/$defs/AnnualRow"
+     },
+     "title": "Corrected",
+     "type": "array"
+    },
+    "legacy": {
+     "items": {
+      "$ref": "#/$defs/AnnualRow"
+     },
+     "title": "Legacy",
+     "type": "array"
+    },
+    "corrected_cds_current_year": {
+     "$ref": "#/$defs/CdsCurrentYear"
+    },
+    "legacy_ytg": {
+     "$ref": "#/$defs/LegacyYtg"
+    }
+   },
+   "required": [
+    "corrected",
+    "legacy",
+    "corrected_cds_current_year",
+    "legacy_ytg"
+   ],
+   "title": "AnnualOut",
+   "type": "object"
+  },
+  "AnnualRow": {
+   "additionalProperties": false,
+   "properties": {
+    "year": {
+     "title": "Year",
+     "type": "integer"
+    },
+    "di": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Di"
+    },
+    "inflation": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Inflation"
+    },
+    "cds": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Cds"
+    },
+    "real": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "(1 + DI)/(1 + Inflação) − 1 (E8.8)",
+     "title": "Real"
+    },
+    "discount": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "(1 + DI)(1 + CDS) − 1 (Q4)",
+     "title": "Discount"
+    }
+   },
+   "required": [
+    "year",
+    "di",
+    "inflation",
+    "cds",
+    "real",
+    "discount"
+   ],
+   "title": "AnnualRow",
+   "type": "object"
+  },
+  "CdiRealized": {
+   "additionalProperties": false,
+   "properties": {
+    "start": {
+     "format": "date",
+     "title": "Start",
+     "type": "string"
+    },
+    "end_exclusive": {
+     "description": "t0: o CDI realizado vai até a véspera (Q11-B)",
+     "format": "date",
+     "title": "End Exclusive",
+     "type": "string"
+    },
+    "business_days": {
+     "title": "Business Days",
+     "type": "integer"
+    },
+    "factor": {
+     "exclusiveMinimum": 0,
+     "title": "Factor",
+     "type": "number"
+    },
+    "last_observation": {
+     "anyOf": [
+      {
+       "format": "date",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Last Observation"
+    }
+   },
+   "required": [
+    "start",
+    "end_exclusive",
+    "business_days",
+    "factor",
+    "last_observation"
+   ],
+   "title": "CdiRealized",
+   "type": "object"
+  },
+  "CdsCurrentYear": {
+   "additionalProperties": false,
+   "properties": {
+    "annualized_rate": {
+     "title": "Annualized Rate",
+     "type": "number"
+    },
+    "remaining_period_accumulated": {
+     "title": "Remaining Period Accumulated",
+     "type": "number"
+    },
+    "business_days": {
+     "title": "Business Days",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "annualized_rate",
+    "remaining_period_accumulated",
+    "business_days"
+   ],
+   "title": "CdsCurrentYear",
+   "type": "object"
+  },
+  "ComparisonRow": {
+   "additionalProperties": false,
+   "description": "CORRIGIDO − LEGADO, em bps (None se o LEGADO está indisponível).",
+   "properties": {
+    "year": {
+     "title": "Year",
+     "type": "integer"
+    },
+    "di_bps": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Di Bps"
+    },
+    "inflation_bps": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Inflation Bps"
+    },
+    "cds_bps": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Cds Bps"
+    },
+    "real_bps": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Real Bps"
+    },
+    "discount_bps": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Discount Bps"
+    }
+   },
+   "required": [
+    "year",
+    "di_bps",
+    "inflation_bps",
+    "cds_bps",
+    "real_bps",
+    "discount_bps"
+   ],
+   "title": "ComparisonRow",
+   "type": "object"
+  },
+  "CorrectedInputsOut": {
+   "additionalProperties": false,
+   "properties": {
+    "year_end_business_days": {
+     "items": {
+      "type": "integer"
+     },
+     "title": "Year End Business Days",
+     "type": "array"
+    },
+    "inflation_gap_business_days": {
+     "title": "Inflation Gap Business Days",
+     "type": "integer"
+    },
+    "interpolation": {
+     "title": "Interpolation",
+     "type": "string"
+    },
+    "gap_rule": {
+     "title": "Gap Rule",
+     "type": "string"
+    },
+    "cdi_realized_factor": {
+     "title": "Cdi Realized Factor",
+     "type": "number"
+    },
+    "ipca_realized_factor": {
+     "title": "Ipca Realized Factor",
+     "type": "number"
+    }
+   },
+   "required": [
+    "year_end_business_days",
+    "inflation_gap_business_days",
+    "interpolation",
+    "gap_rule",
+    "cdi_realized_factor",
+    "ipca_realized_factor"
+   ],
+   "title": "CorrectedInputsOut",
+   "type": "object"
+  },
+  "CurveOut": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "enum": [
+      "di",
+      "inflation",
+      "cds"
+     ],
+     "title": "Name",
+     "type": "string"
+    },
+    "source": {
+     "title": "Source",
+     "type": "string"
+    },
+    "corrected_vertices": {
+     "items": {
+      "$ref": "#/$defs/Vertex"
+     },
+     "title": "Corrected Vertices",
+     "type": "array"
+    },
+    "legacy_vertices": {
+     "items": {
+      "$ref": "#/$defs/Vertex"
+     },
+     "title": "Legacy Vertices",
+     "type": "array"
+    },
+    "corrected_sample": {
+     "items": {
+      "$ref": "#/$defs/CurvePoint"
+     },
+     "title": "Corrected Sample",
+     "type": "array"
+    },
+    "legacy_sample": {
+     "items": {
+      "$ref": "#/$defs/CurvePoint"
+     },
+     "title": "Legacy Sample",
+     "type": "array"
+    }
+   },
+   "required": [
+    "name",
+    "source",
+    "corrected_vertices",
+    "legacy_vertices",
+    "corrected_sample",
+    "legacy_sample"
+   ],
+   "title": "CurveOut",
+   "type": "object"
+  },
+  "CurvePoint": {
+   "additionalProperties": false,
+   "properties": {
+    "days": {
+     "title": "Days",
+     "type": "integer"
+    },
+    "rate": {
+     "description": "Taxa ao ano, em decimal (spot no CORRIGIDO; diária no LEGADO)",
+     "title": "Rate",
+     "type": "number"
+    },
+    "factor": {
+     "description": "Fator acumulado de t0 até ``days``",
+     "exclusiveMinimum": 0,
+     "title": "Factor",
+     "type": "number"
+    }
+   },
+   "required": [
+    "days",
+    "rate",
+    "factor"
+   ],
+   "title": "CurvePoint",
+   "type": "object"
+  },
+  "InputsOut": {
+   "additionalProperties": false,
+   "properties": {
+    "legacy": {
+     "$ref": "#/$defs/LegacyInputsOut"
+    },
+    "corrected": {
+     "$ref": "#/$defs/CorrectedInputsOut"
+    }
+   },
+   "required": [
+    "legacy",
+    "corrected"
+   ],
+   "title": "InputsOut",
+   "type": "object"
+  },
+  "LegacyInputsOut": {
+   "additionalProperties": false,
+   "properties": {
+    "first_year": {
+     "title": "First Year",
+     "type": "integer"
+    },
+    "month": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "Mês do último IPCA no ano corrente (None = nenhum)",
+     "title": "Month"
+    },
+    "quarter": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Quarter"
+    },
+    "ytg_days": {
+     "title": "Ytg Days",
+     "type": "integer"
+    },
+    "cds_ytg_days": {
+     "title": "Cds Ytg Days",
+     "type": "integer"
+    },
+    "inflation_curve_pct": {
+     "items": {
+      "type": "number"
+     },
+     "title": "Inflation Curve Pct",
+     "type": "array"
+    },
+    "di_curve_pct": {
+     "items": {
+      "type": "number"
+     },
+     "title": "Di Curve Pct",
+     "type": "array"
+    },
+    "cds_bps": {
+     "items": {
+      "type": "number"
+     },
+     "title": "Cds Bps",
+     "type": "array"
+    }
+   },
+   "required": [
+    "first_year",
+    "month",
+    "quarter",
+    "ytg_days",
+    "cds_ytg_days",
+    "inflation_curve_pct",
+    "di_curve_pct",
+    "cds_bps"
+   ],
+   "title": "LegacyInputsOut",
+   "type": "object"
+  },
+  "LegacyYtg": {
+   "additionalProperties": false,
+   "description": "Coluna \"YTG\" do Dashboard (Q4:Q6), no LEGADO diário.",
+   "properties": {
+    "di": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Di"
+    },
+    "inflation": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Inflation"
+    },
+    "cds": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Cds"
+    }
+   },
+   "required": [
+    "di",
+    "inflation",
+    "cds"
+   ],
+   "title": "LegacyYtg",
+   "type": "object"
+  },
+  "Metadata": {
+   "additionalProperties": false,
+   "properties": {
+    "as_of_date": {
+     "description": "Data-base única da execução (t0)",
+     "format": "date",
+     "title": "As Of Date",
+     "type": "string"
+    },
+    "code_version": {
+     "title": "Code Version",
+     "type": "string"
+    },
+    "git_commit": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "Hash do commit que gerou a saída",
+     "title": "Git Commit"
+    },
+    "schema_version": {
+     "default": "1.0",
+     "title": "Schema Version",
+     "type": "string"
+    },
+    "default_mode": {
+     "default": "corrected",
+     "enum": [
+      "corrected",
+      "legacy"
+     ],
+     "title": "Default Mode",
+     "type": "string"
+    }
+   },
+   "required": [
+    "as_of_date",
+    "code_version",
+    "git_commit"
+   ],
+   "title": "Metadata",
+   "type": "object"
+  },
+  "MonthlyValue": {
+   "additionalProperties": false,
+   "properties": {
+    "year": {
+     "title": "Year",
+     "type": "integer"
+    },
+    "month": {
+     "maximum": 12,
+     "minimum": 1,
+     "title": "Month",
+     "type": "integer"
+    },
+    "value_pct": {
+     "title": "Value Pct",
+     "type": "number"
+    },
+    "release_date": {
+     "anyOf": [
+      {
+       "format": "date",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Release Date"
+    }
+   },
+   "required": [
+    "year",
+    "month",
+    "value_pct"
+   ],
+   "title": "MonthlyValue",
+   "type": "object"
+  },
+  "RealizedOut": {
+   "additionalProperties": false,
+   "properties": {
+    "ipca_monthly": {
+     "description": "IPCA do ano corrente, com mês e ano",
+     "items": {
+      "$ref": "#/$defs/MonthlyValue"
+     },
+     "title": "Ipca Monthly",
+     "type": "array"
+    },
+    "ipca_ytd": {
+     "title": "Ipca Ytd",
+     "type": "number"
+    },
+    "ipca_rule": {
+     "description": "Regra aplicada ao IPCA ainda não divulgado (E8.6)",
+     "title": "Ipca Rule",
+     "type": "string"
+    },
+    "ipca15_used": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/MonthlyValue"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "cdi": {
+     "$ref": "#/$defs/CdiRealized"
+    },
+    "selic_monthly_legacy": {
+     "description": "Selic mensal usada pelo LEGADO (Dashboard!L20:L31), com mês e ano",
+     "items": {
+      "$ref": "#/$defs/MonthlyValue"
+     },
+     "title": "Selic Monthly Legacy",
+     "type": "array"
+    }
+   },
+   "required": [
+    "ipca_monthly",
+    "ipca_ytd",
+    "ipca_rule",
+    "ipca15_used",
+    "cdi",
+    "selic_monthly_legacy"
+   ],
+   "title": "RealizedOut",
+   "type": "object"
+  },
+  "SourceRecord": {
+   "additionalProperties": false,
+   "description": "Registro de uma fonte numa execução, com as quatro datas da seção 7.",
+   "properties": {
+    "source": {
+     "title": "Source",
+     "type": "string"
+    },
+    "requested_date": {
+     "description": "Data pedida à fonte",
+     "format": "date",
+     "title": "Requested Date",
+     "type": "string"
+    },
+    "source_date": {
+     "anyOf": [
+      {
+       "format": "date",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "Data econômica do dado",
+     "title": "Source Date"
+    },
+    "publication_date": {
+     "anyOf": [
+      {
+       "format": "date-time",
+       "type": "string"
+      },
+      {
+       "format": "date",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "description": "Quando a fonte publicou",
+     "title": "Publication Date"
+    },
+    "retrieved_at": {
+     "description": "Quando o pipeline baixou",
+     "format": "date-time",
+     "title": "Retrieved At",
+     "type": "string"
+    },
+    "stale": {
+     "default": false,
+     "title": "Stale",
+     "type": "boolean"
+    },
+    "fallback_reason": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Fallback Reason"
+    },
+    "url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Url"
+    },
+    "sha256": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Sha256"
+    },
+    "raw_path": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Raw Path"
+    }
+   },
+   "required": [
+    "source",
+    "requested_date",
+    "source_date",
+    "publication_date",
+    "retrieved_at"
+   ],
+   "title": "SourceRecord",
+   "type": "object"
+  },
+  "Vertex": {
+   "additionalProperties": false,
+   "properties": {
+    "days": {
+     "description": "Prazo em dias úteis a partir de t0",
+     "title": "Days",
+     "type": "integer"
+    },
+    "rate": {
+     "description": "Taxa spot ao ano, em decimal, base 252",
+     "title": "Rate",
+     "type": "number"
+    }
+   },
+   "required": [
+    "days",
+    "rate"
+   ],
+   "title": "Vertex",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "metadata": {
+   "$ref": "#/$defs/Metadata"
+  },
+  "sources": {
+   "items": {
+    "$ref": "#/$defs/SourceRecord"
+   },
+   "title": "Sources",
+   "type": "array"
+  },
+  "inputs": {
+   "$ref": "#/$defs/InputsOut"
+  },
+  "curves": {
+   "items": {
+    "$ref": "#/$defs/CurveOut"
+   },
+   "title": "Curves",
+   "type": "array"
+  },
+  "annual": {
+   "$ref": "#/$defs/AnnualOut"
+  },
+  "realized": {
+   "$ref": "#/$defs/RealizedOut"
+  },
+  "comparison": {
+   "items": {
+    "$ref": "#/$defs/ComparisonRow"
+   },
+   "title": "Comparison",
+   "type": "array"
+  },
+  "alerts": {
+   "items": {
+    "$ref": "#/$defs/Alert"
+   },
+   "title": "Alerts",
+   "type": "array"
+  }
+ },
+ "required": [
+  "metadata",
+  "sources",
+  "inputs",
+  "curves",
+  "annual",
+  "realized",
+  "comparison",
+  "alerts"
+ ],
+ "title": "RunOutput",
+ "type": "object"
+}

@@ -1,0 +1,24 @@
+# Ambientes e caches
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Rascunhos: só os scripts de auditoria do topo de scratch/ entram no repositório
+scratch/**
+!scratch/*.py
+
+# Build do site (gerado no workflow)
+site/
+
+# Travas do armazenamento de brutos
+data/raw/**/.manifest.lock
+
+# Originais soltos na raiz (cópias versionadas em docs/legado/ e brand/)
+/Query - Ávila.xlsx
+/Captura de Tela*.png
+
+# Planilha legada interna: fica só na máquina local (não vai para o repositório público)
+docs/legado/*.xlsx

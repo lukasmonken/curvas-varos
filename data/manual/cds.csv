@@ -1,0 +1,14 @@
+# CDS Brasil (USD) por vértice, em bps. Fonte de produção enquanto não houver contrato (Q2).
+# Só acrescentar linhas; nunca editar nem apagar linhas antigas.
+# Colunas: data de referência (AAAA-MM-DD), vértice (6M 1A 2A 3A 4A 5A 7A 10A 20A),
+# bps, fonte, quem preencheu, quando preencheu (ISO 8601).
+data_referencia,vertice,bps,fonte,preenchido_por,preenchido_em
+2026-09-29,6M,45.67,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00
+2026-09-29,1A,54.35,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00
+2026-09-29,2A,67.89,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00
+2026-09-29,3A,87.28,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00
+2026-09-29,4A,109.84,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00
+2026-09-29,5A,130.71,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00
+2026-09-29,7A,171.71,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00
+2026-09-29,10A,213.22,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00
+2026-09-29,20A,245.59,Investing.com (copiado da planilha Query-Avila),planilha legada,2026-10-01T00:00:00-03:00

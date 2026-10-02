@@ -1,0 +1,74 @@
+[
+ {
+  "file": "cz_2026-09-23.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp (POST Idioma=PT, saida=csv, Dt_Ref=23/09/2026)",
+  "requested_date": "2026-09-23",
+  "source_date": "2026-09-23",
+  "publication_date": null,
+  "retrieved_at": "2026-10-01T21:05:08+00:00",
+  "sha256": "591e256795fb246bdc462c6e2cd96490ef486d517f16286b235835c6ed0c68f0",
+  "bytes": 2933,
+  "nota": "respostas gravadas em 01/10/2026; a página pública só guarda 5 dias úteis"
+ },
+ {
+  "file": "cz_2026-09-24.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp (POST Idioma=PT, saida=csv, Dt_Ref=24/09/2026)",
+  "requested_date": "2026-09-24",
+  "source_date": "2026-09-24",
+  "publication_date": null,
+  "retrieved_at": "2026-10-01T21:05:10+00:00",
+  "sha256": "16e67c1a83980d04ff6b87feac8884c16c4598536c4fb19f30f00a5cf1e352bd",
+  "bytes": 2933,
+  "nota": "respostas gravadas em 01/10/2026; a página pública só guarda 5 dias úteis"
+ },
+ {
+  "file": "cz_2026-09-25.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp (POST Idioma=PT, saida=csv, Dt_Ref=25/09/2026)",
+  "requested_date": "2026-09-25",
+  "source_date": "2026-09-25",
+  "publication_date": null,
+  "retrieved_at": "2026-10-01T21:05:12+00:00",
+  "sha256": "9794c267c2934af72bfc5d29046c454d9caa52cca77247b5e8b5cf3d2be9c220",
+  "bytes": 2939,
+  "nota": "respostas gravadas em 01/10/2026; a página pública só guarda 5 dias úteis"
+ },
+ {
+  "file": "cz_2026-09-28.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp (POST Idioma=PT, saida=csv, Dt_Ref=28/09/2026)",
+  "requested_date": "2026-09-28",
+  "source_date": "2026-09-28",
+  "publication_date": null,
+  "retrieved_at": "2026-10-01T21:05:14+00:00",
+  "sha256": "54b15c0b6a12455e97b1e97b5bfda4c66c2573f6f8a1d92a53f0d2a196620ab5",
+  "bytes": 2938,
+  "nota": "respostas gravadas em 01/10/2026; a página pública só guarda 5 dias úteis"
+ },
+ {
+  "file": "cz_2026-09-29.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp (POST Idioma=PT, saida=csv, Dt_Ref=29/09/2026)",
+  "requested_date": "2026-09-29",
+  "source_date": "2026-09-29",
+  "publication_date": null,
+  "retrieved_at": "2026-10-01T21:05:16+00:00",
+  "sha256": "bfd3686b19793209cd5248c275f33ea938e9fe1348587f4e9734816517895ca1",
+  "bytes": 2941,
+  "nota": "respostas gravadas em 01/10/2026; a página pública só guarda 5 dias úteis"
+ },
+ {
+  "file": "cz_2026-09-30.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp (POST Idioma=PT, saida=csv, Dt_Ref=30/09/2026)",
+  "requested_date": "2026-09-30",
+  "source_date": "2026-09-30",
+  "publication_date": null,
+  "retrieved_at": "2026-10-01T21:05:19+00:00",
+  "sha256": "550d7fc277333ce8d4e88d4a43ab856ce84778f1eed163935e52a9d2adf4d9f4",
+  "bytes": 2942,
+  "nota": "respostas gravadas em 01/10/2026; a página pública só guarda 5 dias úteis"
+ }
+]

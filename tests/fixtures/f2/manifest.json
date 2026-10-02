@@ -1,0 +1,56 @@
+[
+ {
+  "file": "bcb_sgs_12_cdi_diario.json",
+  "source": "bcb_sgs_12",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2026&dataFinal=04%2F09%2F2026",
+  "requested_date": "2026-09-04",
+  "retrieved_at": "2026-10-01T20:03:39+00:00",
+  "sha256": "fd9014e810efcdab3e0f3c8f79f41c68715e1162b5071a9fcfb64a0064da9b5b",
+  "bytes": 6971
+ },
+ {
+  "file": "bcb_sgs_433_ipca_mensal.json",
+  "source": "bcb_sgs_433",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=01%2F01%2F2026&dataFinal=31%2F12%2F2026",
+  "requested_date": "2026-09-04",
+  "retrieved_at": "2026-10-01T20:03:39+00:00",
+  "sha256": "2a1f7bd935626c0584fdfecb6a04e66a6c9add3e9ba02ccca29a6b839eefe644",
+  "bytes": 298
+ },
+ {
+  "file": "ibge_calendario_2026.json",
+  "source": "ibge_calendario",
+  "url": "https://servicodados.ibge.gov.br/api/v3/calendario/?de=01-01-2026&ate=12-31-2026&qtd=1000",
+  "requested_date": "2026-09-04",
+  "retrieved_at": "2026-10-01T20:03:40+00:00",
+  "sha256": "26a2795f32a49097495282dc2bab51d3f8ae3edcacb5206863ec7c46b0e3127e",
+  "bytes": 290967
+ },
+ {
+  "file": "bcb_sgs_12_cdi_diario_2026-09-29.json",
+  "source": "bcb_sgs_12",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2026&dataFinal=29%2F09%2F2026",
+  "requested_date": "2026-09-29",
+  "retrieved_at": "2026-10-01T21:41:03+00:00",
+  "sha256": "ec931add7ca4b83059e5a196e5d304c33280984ecc7715a55e97c59e6045c396",
+  "bytes": 7627
+ },
+ {
+  "file": "bcb_sgs_7478_ipca15_mensal.json",
+  "source": "bcb_sgs_7478",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.7478/dados?formato=json&dataInicial=01%2F01%2F2026&dataFinal=31%2F12%2F2026",
+  "requested_date": "2026-09-29",
+  "retrieved_at": "2026-10-01T21:41:03+00:00",
+  "sha256": "0162aac9f8cae818e4ccd3a2c40e8ff4d2ef74144b987b9a2078bd70cef155fe",
+  "bytes": 335
+ },
+ {
+  "file": "bcb_sgs_4390_selic_mensal.json",
+  "source": "bcb_sgs_4390",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4390/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=30%2F09%2F2026",
+  "requested_date": "2026-09-29",
+  "retrieved_at": "2026-10-02T15:19:56+00:00",
+  "sha256": "1522362e11785bd73f7aec5546374d80e1334185166e7021ed0598ff5e61ec5c",
+  "bytes": 778
+ }
+]
