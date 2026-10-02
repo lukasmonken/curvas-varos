@@ -229,8 +229,14 @@ def _check_anbima(content: bytes, day: date) -> AnbimaEttj:
     return ettj
 
 
-def _sgs_check(bounds: tuple[float, float], what: str) -> Callable[[bytes, date], None]:
-    """Seção 12: série não vazia e todos os valores dentro da faixa plausível."""
+def _sgs_check(
+    bounds: tuple[float, float], what: str, *, monthly: bool = False
+) -> Callable[[bytes, date], None]:
+    """Seção 12: série não vazia e todos os valores dentro da faixa plausível.
+
+    Série mensal: toda data no dia 1 (``monthly_by_reference``). Conferir aqui, e não só
+    no cálculo, faz a violação seguir o caminho das fontes (fallback ou ``BLOQUEADO``).
+    """
     lo, hi = bounds
 
     def check(content: bytes, _day: date) -> None:
@@ -240,6 +246,9 @@ def _sgs_check(bounds: tuple[float, float], what: str) -> Callable[[bytes, date]
         bad = [(d.isoformat(), v) for d, v in rows if not lo <= v <= hi]
         if bad:
             raise ValueError(f"{what} fora da faixa [{lo}, {hi}]: {bad[:3]}")
+        off = [d.isoformat() for d, _ in rows if monthly and d.day != 1]
+        if off:
+            raise ValueError(f"{what} com data fora do dia 1: {off[:3]}")
 
     return check
 
@@ -290,21 +299,21 @@ def source_specs(client: httpx.Client | None, as_of: date, cfg: Config) -> list[
             "bcb_sgs_433",
             "bcb_sgs_433.json",
             sgs(cfg.sgs.ipca_monthly, first, last),
-            _sgs_check(r.ipca_monthly_pct, "IPCA mensal"),
+            _sgs_check(r.ipca_monthly_pct, "IPCA mensal", monthly=True),
             _last_obs,
         ),
         SourceSpec(
             "bcb_sgs_4390",
             "bcb_sgs_4390.json",
             sgs(cfg.sgs.selic_monthly, first, last),
-            _sgs_check(r.selic_monthly_pct, "Selic mensal"),
+            _sgs_check(r.selic_monthly_pct, "Selic mensal", monthly=True),
             _last_obs,
         ),
         SourceSpec(
             "bcb_sgs_7478",
             "bcb_sgs_7478.json",
             sgs(cfg.sgs.ipca15_monthly, first, last),
-            _sgs_check(r.ipca_monthly_pct, "IPCA-15 mensal"),
+            _sgs_check(r.ipca_monthly_pct, "IPCA-15 mensal", monthly=True),
             _last_obs,
         ),
         SourceSpec(

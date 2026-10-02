@@ -1,6 +1,7 @@
-# Seção 13: pipeline diário. Horários e motivos no README ("Operação diária").
+# Seção 13: pipeline diário. Horários e motivos no README (seção 5, "Horário do cron").
 #
-# - 21h37 BRT, seg–sex (00h37 UTC, ter–sáb): a ETTJ da ANBIMA sai entre 19h e 20h.
+# - 21h37 BRT, seg–sex (00h37 UTC, ter–sáb): a ETTJ da ANBIMA sai no fim da tarde ou à
+#   noite (ANBIMA Feed: "a partir das 20h").
 # - 07h23 BRT, ter–sáb (10h23 UTC): recuperação, caso a primeira atrase ou seja descartada.
 #
 # O cron do GitHub é em UTC (o Brasil não tem horário de verão desde 2019) e pode

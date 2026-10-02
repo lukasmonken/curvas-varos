@@ -547,6 +547,12 @@ class TestRevisaoF4:
         with pytest.raises(BlockingError, match="fora da faixa"):
             go(tmp_path, T0, client=client({"sgs:12": json.dumps(rows).encode()}))
 
+    def test_serie_mensal_fora_do_dia_1_bloqueia_so_o_dia(self, tmp_path: Path) -> None:
+        rows = json.loads(SGS_FILES["433"].read_text())
+        rows[-1]["data"] = "15/08/2026"
+        with pytest.raises(BlockingError, match="fora do dia 1"):
+            go(tmp_path, T0, client=client({"sgs:433": json.dumps(rows).encode()}))
+
     def test_datas_das_fontes(self, tmp_path: Path) -> None:
         out = go(tmp_path, T0)
         by = {s.source: s for s in out.sources}

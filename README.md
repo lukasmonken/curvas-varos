@@ -30,7 +30,7 @@ data/calendar/       (feriados ANBIMA) ─────────┤
 Uma execução de `python -m curvas.run`, passo a passo:
 
 1. **Calendário.** Carrega os feriados ANBIMA. Recusa t0 que não seja dia útil ou que esteja no futuro. Sem `--as-of`, t0 = hoje em Brasília.
-2. **Coleta.** Para cada fonte: baixa, interpreta e valida; só então grava o bruto em `data/raw/`. Resposta inválida não é gravada. Depois relê o bruto gravado de t0. Sem bruto válido de t0, procura o último bruto válido nos 60 dias corridos anteriores e marca a fonte como defasada (`stale`). Sem nenhum, bloqueia.
+2. **Coleta.** Para cada fonte: baixa, interpreta e valida; só então grava o bruto em `data/raw/`. Resposta inválida não é gravada. No workflow, os brutos só vão para o repositório se algum dia for publicado (seção 7). Depois relê o bruto gravado de t0. Sem bruto válido de t0, procura o último bruto válido nos 60 dias corridos anteriores e marca a fonte como defasada (`stale`). Sem nenhum, bloqueia.
 3. **CDS manual.** Lê `data/manual/cds.csv` e escolhe o último conjunto completo com data ≤ t0.
 4. **Cálculo.** Monta os inputs dos dois modos e roda o motor (funções puras, sem I/O).
 5. **Saída.** Monta o JSON, acrescenta os alertas de variação diária contra a saída do dia útil anterior e revalida o schema inteiro. Grava `data/curves/AAAA-MM-DD.json` e, se t0 for ≥ à data atual de `data/latest.json`, também o `latest.json` (ele nunca regride).
@@ -56,14 +56,14 @@ O pipeline não gera o site. O build é outro comando (`curvas.site.build`), que
 | `output/` | `json_out.py` (monta a saída e os alertas diários), `csv_out.py`, `xlsx_out.py` e `comparacao.py` (tabela da F2) |
 | `site/` | `build.py` (CLI do site), `view.py` (textos), `charts.py` (Plotly), `spec_doc.py` (especificação em HTML), `templates/` e `static/` |
 
-Camadas: `fetch` só importa `config` e `httpx`; `engine` só importa a si mesmo; `site` lê `models`, `output` e `calendar` e nunca importa `fetch` nem `run`.
+Camadas: `fetch` só importa `config`, `logs` e `httpx`; `engine` só importa a si mesmo; `site` lê `config`, `models`, `output`, `calendar` e `normalize.cds_manual` (`VERTEX_DAYS`) e nunca importa `fetch` nem `run`.
 
 ### Pastas do repositório
 
 | Pasta | Conteúdo | No git |
 |---|---|---|
 | `src/curvas/` | Pacote (37 arquivos `.py`) | sim |
-| `tests/` e `tests/fixtures/` | 411 testes; respostas gravadas (`f2/`, `f3/anbima/`), CDS congelado (`f4/`), dados congelados do site (`f5/data/`), fixtures do LEGADO (`legacy/`) | sim |
+| `tests/` e `tests/fixtures/` | 412 testes; respostas gravadas (`f2/`, `f3/anbima/`), CDS congelado (`f4/`), dados congelados do site (`f5/data/`), fixtures do LEGADO (`legacy/`) | sim |
 | `data/` | Brutos, saídas, CDS manual e calendário (seção 3) | sim |
 | `docs/` | Instruções, especificação, relatórios das fases e `schema.json` | sim |
 | `docs/legado/` | Planilha legada interna, só na máquina local | não |
@@ -80,7 +80,7 @@ Camadas: `fetch` só importa `config` e `httpx`; `engine` só importa a si mesmo
 | `dev` (padrão) | pytest, hypothesis, mypy, ruff, bizdays | testes e checks; o bizdays só confere o calendário |
 | `tools` | formulas, xlrd | só os scripts de `tools/`; nunca em runtime |
 
-numpy e pandas estão declarados, mas nenhum arquivo do projeto os importa: hoje só chegam como dependência do bizdays.
+numpy e pandas estão declarados no runtime, mas nenhum arquivo do projeto os importa; só o bizdays (via pandas-market-calendars) e o formulas (numpy) os usam.
 
 Python ≥ 3.12. O CI usa 3.12; o mypy confere a semântica de 3.12 em qualquer versão local. O pacote só funciona a partir do checkout (os caminhos de `data/` e `docs/` vêm da posição de `src/curvas`), e o `uv sync` o instala em modo editável.
 
@@ -109,6 +109,8 @@ uv run pytest -q
 
 Todo comando abaixo roda na raiz do repositório. Os que escrevem em `data/`, `docs/` ou `tests/fixtures/` alteram arquivos versionados: confira o diff no GitHub Desktop antes de commitar, ou experimente numa cópia (fim desta seção).
 
+**Regra do repositório local:** o bot commita `data/` todo dia e o formulário cds commita `data/manual/cds.csv`. Antes de rodar no repositório qualquer comando que leia ou escreva `data/`, `docs/` ou `tests/fixtures/` (`cds_add`, `curvas.run`, `curvas.schema export`, scripts de `tools/`), faça *Fetch origin* e *Pull* no GitHub Desktop. Depois rode, confira o diff, commite e faça *Push* logo em seguida.
+
 ### Testes e checks (os mesmos do CI)
 
 ```bash
@@ -120,7 +122,7 @@ CI=true uv run pytest -q
 
 - `CI=true` deixa o hypothesis determinístico, como no CI. Sem ele, os exemplos são aleatórios; use-o para reproduzir uma falha do CI.
 - Nenhum teste acessa a rede: coletores e pipeline usam respostas gravadas.
-- Resultado esperado: `411 passed` com a planilha local em `docs/legado/Query-Avila.xlsx`; sem ela (clone limpo e CI), `409 passed, 2 skipped`, com o motivo "planilha fora do repositório (confidencial)".
+- Resultado esperado: `412 passed` com a planilha local em `docs/legado/Query-Avila.xlsx`; sem ela (clone limpo e CI), `410 passed, 2 skipped`, com o motivo "planilha fora do repositório (confidencial)".
 - Alguns testes leem arquivos de produção: `data/manual/cds.csv`, `data/calendar/*`, `docs/schema.json`, `docs/F2_LEGADO_X_CORRIGIDO.md`, `docs/f2_legado_x_corrigido.csv` e `docs/ESPECIFICACAO.md`. Um `cds.csv` quebrado reprova a suíte e, com ela, o daily.
 
 | Arquivo | Cobre |
@@ -147,7 +149,7 @@ uv run python -m curvas.run --as-of 2026-10-01 --offline
 |---|---|
 | `--as-of AAAA-MM-DD` | t0. Sem ela, t0 = hoje em Brasília (UTC−3 fixo no código; a variável `TZ` não muda nada) |
 | `--today AAAA-MM-DD` | Simula a data de hoje |
-| `--offline` | Não acessa a rede: usa só os brutos já gravados, não grava brutos e não compacta meses. Reproduz o JSON publicado byte a byte, exceto `metadata.git_commit` |
+| `--offline` | Não acessa a rede: usa só os brutos já gravados, não grava brutos e não compacta meses. Reproduz o JSON publicado byte a byte, exceto `metadata.git_commit`, se a execução original não teve falha de coleta e o `cds.csv` e a saída do dia anterior não mudaram; senão diferem os alertas `fonte_bruto_do_dia`, o `fallback_reason`, o CDS e a variação diária |
 | `--catch-up` | Modo do workflow: processa os dias pendentes da janela de 5 dias úteis (seção 5). Ignora `--as-of` em silêncio |
 | `--ipca15` | Forma A do IPCA-15 (Q13), desligada por padrão. Muda só o CORRIGIDO do ano corrente. O daily nunca a usa |
 
@@ -171,21 +173,21 @@ uv run python -m curvas.run --as-of 2026-10-01 --offline
 
 Não há fonte gratuita que permita coleta automática (`docs/F3_DIAGNOSTICO_CDS.md`, Q16). A coleta é manual, como na planilha:
 
-1. Uma vez por dia útil, alguém abre a página **Coleta do CDS** do site, que traz o link da aba do Investing.com de cada vértice (como `Dashboard!J9:J17`), e lê os 9 fechamentos.
+1. Uma vez por dia útil, alguém abre a página **Coleta do CDS** do site, que traz o link da aba do Investing.com de cada vértice (como `Dashboard!J9:J17`), e lê os 9 fechamentos. A `data` do registro é o dia a que o fechamento se refere, não o dia do registro: quem registra de manhã, antes do fechamento do dia, está lendo o fechamento do dia útil anterior e informa essa data. Uma data errada não gera erro nem alerta; o CDS só fica deslocado um dia.
 2. Registra os valores de uma destas formas:
-   - **Pelo navegador** (precisa de acesso de escrita ao repositório): aba Actions → **cds** → *Run workflow*, branch `main`, com `data` (AAAA-MM-DD), `valores` (os 9 números separados por espaço) e `por` (nome, sem vírgula). O workflow grava com o `cds_add`, commita `data/manual/cds.csv` com `[skip ci]` e dispara o **daily** em modo de recuperação.
+   - **Pelo navegador** (precisa de acesso de escrita ao repositório; seção 8): aba Actions → **cds** → *Run workflow*, branch `main`, com `data` (AAAA-MM-DD), `valores` (os 9 números separados por espaço) e `por` (sem vírgula). O workflow grava com o `cds_add`, commita `data/manual/cds.csv` com `[skip ci]` e dispara o **daily** em modo de recuperação. O `por` fica público para sempre (coluna `preenchido_por` do `cds.csv` e mensagem do commit, num repositório público); use iniciais ou um apelido, não o nome completo.
    - **Pela linha de comando:**
 
      ```bash
      uv run python -m curvas.cds_add --data 2026-10-01 --por "Nome" --valores "45,67 54,35 67,89 87,28 109,84 130,71 171,71 213,22 245,59"
      ```
 
-     Sem `--valores`, o comando pergunta um por um (`CDS 6M (bps):` … `CDS 20A (bps):`); um valor inválido aborta e é preciso recomeçar do 6M. Depois, no GitHub Desktop: *Fetch origin* / *Pull* (o bot commita `data/` todo dia), commit de `data/manual/cds.csv` e *Push*. O push não dispara o daily: a refação fica para o próximo cron ou para um daily manual com `as_of` vazio.
+     Sem `--valores`, o comando pergunta um por um (`CDS 6M (bps):` … `CDS 20A (bps):`); um valor inválido aborta e é preciso recomeçar do 6M. Antes do comando, *Fetch origin* e *Pull* no GitHub Desktop (regra do início desta seção); depois, commit de `data/manual/cds.csv` e *Push* logo em seguida. O `--por` fica público como no formulário. O push não dispara o daily: a refação fica para o próximo cron ou para um daily manual com `as_of` vazio.
 3. A recuperação seguinte refaz a data-base cujo CDS foi lançado ou corrigido, se ela ainda estiver na janela de 5 dias úteis da ANBIMA. Fora da janela, o registro fica em `cds.csv`, mas a saída publicada daquele dia não muda (seção 7 mostra como forçar).
 
 Regras do registro:
 
-- Ordem fixa 6M 1A 2A 3A 4A 5A 7A 10A 20A, em bps, separados por **espaço**, com ponto ou vírgula decimal. Separar por vírgula (`45.67,54.35`) ou usar milhar (`1.045,67`) falha.
+- Ordem fixa 6M 1A 2A 3A 4A 5A 7A 10A 20A, em bps, separados por **espaço**, com ponto ou vírgula decimal. Separar por vírgula (`45.67,54.35`) falha. Não use separador de milhar: `1.045,67` falha, mas `1.045` ou `1,045` é lido como 1,045 bps, sem erro.
 - Validações: exatamente 9 valores; 0 < bps < 3000; data de referência dia útil ANBIMA e não posterior ao preenchimento; nome e fonte sem vírgula. O arquivo inteiro é revalidado e gravado de forma atômica.
 - Sucesso: `ok: 9 vértices de DD/MM/AAAA em <arquivo>`, código 0. Erro: `NADA GRAVADO: <motivo>` em stderr, código 1, arquivo intacto.
 - Para corrigir um dia, registre os 9 valores de novo: vale a linha com `preenchido_em` mais recente. A saída ganha um alerta "CDS <vértice> de DD/MM/AAAA corrigido (linha N)" por vértice. Uma correção no mesmo segundo da gravação anterior é recusada; espere 1 s.
@@ -200,7 +202,7 @@ uv run python -m curvas.site.build --out site --ocultar-cds
 uv run python -m http.server 8799 --bind 127.0.0.1 -d site
 ```
 
-Depois do terceiro comando, abra `http://127.0.0.1:8799/` (Ctrl-C encerra; qualquer porta livre serve). O build lê `--dados` (padrão `data/`: `latest.json` e `curves/*.json`, todos validados contra o schema), apaga do `--out` o que um build anterior deixou com os mesmos nomes e grava de novo. Dois builds seguidos dão os mesmos bytes. **Nunca aponte `--out` para `data/`** nem para a pasta de `--dados`: o build apaga `latest.json` e `curves/` antes de ler.
+Depois do terceiro comando, abra `http://127.0.0.1:8799/` (Ctrl-C encerra; qualquer porta livre serve). O build lê `--dados` (padrão `data/`: `latest.json` e `curves/*.json`, todos validados contra o schema), apaga do `--out` o que um build anterior deixou com os mesmos nomes e grava de novo. Dois builds seguidos dão os mesmos bytes. **Nunca aponte `--out` para `data/`** nem para a pasta de `--dados`: o build lê e valida os JSON, apaga `latest.json` e `curves/` do `--out` e só depois os copia de `--dados`. Com `--out` igual a `--dados`, os JSON somem: com o CDS visível, o build cai com `FileNotFoundError`; com `--ocultar-cds`, termina com `ok` e código 0, sem nenhum aviso.
 
 Site estático com Jinja2 e Plotly auto-hospedado. Todo número sai pronto do JSON; o JavaScript só alterna abas, modo (CORRIGIDO/LEGADO) e datas, e guarda o modo escolhido no navegador. A única dependência externa é a fonte Instrument Sans, do Google Fonts.
 
@@ -238,7 +240,7 @@ uv run python -m curvas.schema export
 |---|---|---|
 | **daily**, recuperação | Actions → daily → *Run workflow*, branch `main`, `as_of` vazio | `uv run python -m curvas.run --catch-up` |
 | **daily**, um dia | Mesmo caminho, `as_of` = AAAA-MM-DD | `uv run python -m curvas.run --as-of "$AS_OF"` (publica mesmo com a ETTJ defasada) |
-| **cds** | Actions → cds → *Run workflow*, branch `main`: `data`, `valores`, `por` | `cds_add`, commit `cds: <data> por <nome> [skip ci]`, push e `gh workflow run daily.yml` |
+| **cds** | Actions → cds → *Run workflow*, branch `main`: `data`, `valores`, `por` | `cds_add`, commit `cds: <data> por <por> [skip ci]` (público), push e `gh workflow run daily.yml` |
 
 Os inputs chegam aos comandos só por variáveis de ambiente, nunca interpolados no script. Rodar num branch que não seja o `main` grava nesse branch.
 
@@ -277,7 +279,8 @@ Arquivos: `data/curves/AAAA-MM-DD.json` (um por data-base, regravado a cada exec
 
 | Campo | Unidade |
 |---|---|
-| `annual.*`, `Vertex.rate`, `CurvePoint.rate` | decimal ao ano, base 252 (0.1397 = 13,97% a.a.) |
+| `annual.corrected[*]`, `annual.legacy[*]`, `Vertex.rate`, `CurvePoint.rate` | decimal ao ano, base 252 (0.1397 = 13,97% a.a.) |
+| `annual.legacy_ytg.*` | decimal acumulado, não anualizado (DI e inflação do início do trimestre q a 31/12; CDS nos YTG dias) |
 | `CurvePoint.factor`, `realized.cdi.factor` | fator acumulado |
 | `Vertex.days`, `CurvePoint.days` | dias úteis a partir de t0 |
 | `inputs.legacy.*_curve_pct` | % ao ano, como na planilha |
@@ -304,7 +307,7 @@ Arquivos: `data/curves/AAAA-MM-DD.json` (um por data-base, regravado a cada exec
 | `cds_manual` | `data/manual/cds.csv` | último conjunto completo ≤ t0 | CDS (9 vértices) |
 | calendário | `data/calendar/feriados_anbima.csv` | 2001 a 2099 | Dias úteis, t0 e janela |
 
-Todas são públicas e sem autenticação. HTTP: timeout de 10 s (conexão) e 60 s (leitura), 4 tentativas com espera de 2, 4 e 8 s (teto de 30 s, respeitando `Retry-After`), repetição em 408, 429, 500, 502, 503, 504 e erro de rede; outro 4xx falha na hora.
+Todas são públicas e sem autenticação. HTTP: timeout de 10 s (conexão) e 60 s (leitura), 4 tentativas com espera de 2, 4 e 8 s (teto de 30 s, respeitando `Retry-After`), repetição em 408, 429, 500, 502, 503, 504 e erro de rede; qualquer outro status ≥ 400 falha na hora.
 
 **ANBIMA (ETTJ).**
 - CSV latin-1, `;`, vírgula decimal, em quatro seções (parâmetros de Svensson; ETTJ IPCA, PREF e Inflação Implícita; PREFIXADOS Circular 3.361; erro título a título).
@@ -315,7 +318,7 @@ Todas são públicas e sem autenticação. HTTP: timeout de 10 s (conexão) e 60
 
 **BCB (SGS).**
 - A resposta só é aceita se for JSON; HTML com status 200 ("requisição rejeitada") conta como falha transitória.
-- Checagem: série não vazia e valores na faixa (CDI 0 a 0,2% a.d.; IPCA e IPCA-15 −3 a 5% no mês; Selic mensal 0 a 5%). Séries mensais datadas no 1º dia do mês, sem repetição nem desordem.
+- Checagem: série não vazia e valores na faixa (CDI 0 a 0,2% a.d.; IPCA e IPCA-15 −3 a 5% no mês; Selic mensal 0 a 5%). Datas sem repetição nem desordem. Nas séries mensais (433, 4390, 7478), toda data no 1º dia do mês.
 - `source_date` = última observação ≤ t0. No SGS 433, vira o mês do último IPCA usado, e `publication_date` a divulgação dele pelo IBGE. `source_date` = t0 no SGS 12 não significa que o CDI de t0 entrou: o realizado vai até a véspera.
 - As séries 4391 (CDI mensal) e 11 (Selic diária) estão declaradas em `config.py`, mas não são baixadas.
 
@@ -382,7 +385,7 @@ Decisão de 02/10/2026 (Q17): repositório e site publicam os valores de CDS. A 
 |---|---|
 | ausente, vazia ou `false` | mostra o CDS |
 | `true` | `--ocultar-cds` |
-| qualquer outro valor | o passo de build falha e nada novo é implantado |
+| qualquer outro valor | o passo de build falha e nada novo é implantado (os JSON do dia já foram commitados) |
 
 - O workflow também aceita `1`, `sim`, `0`, `nao` e `não`, sem diferenciar maiúsculas ASCII nem espaços; `NÃO` maiúsculo falha. Use só `true` ou `false`.
 - Crie a variável no nível do repositório (*Settings → Secrets and variables → Actions → Variables*), não no environment `github-pages`.
@@ -422,7 +425,7 @@ Dias publicados com SGS/IBGE defasados ou com `cdi_preenchido` não são refeito
 - erro de montagem ou de cálculo (`cálculo: …`);
 - schema inválido (NaN, infinito, fator ≤ 0).
 
-Fora do run, bloqueiam também os checks e testes do daily (antes do pipeline), a validação do schema e um `OCULTAR_CDS` inválido.
+Fora do run, bloqueiam também os checks e testes do daily (antes do pipeline) e a validação do schema (antes do commit). Um `OCULTAR_CDS` inválido não bloqueia o dia: os JSON já estão commitados no repositório; só o build e o deploy do site falham.
 
 **Fica pendente, sem erro:** a ETTJ de hoje ainda não saiu (`Pendente: …`). A próxima execução tenta de novo.
 
@@ -443,7 +446,7 @@ Um dia bloqueado não impede os outros: os dias que saíram são commitados e im
 | `legado_indisponivel` | warning | `#N/A` do LEGADO em outro ano |
 | `variacao_diaria` | warning | Taxa anual variou mais de 50 bps desde a saída do dia útil anterior |
 
-**Variação diária:** compara os campos `di`, `inflation`, `cds`, `real` e `discount`, nos dois modos e em cada ano, com a saída do dia útil imediatamente anterior, se ela existir. Alerta quando |variação| > 50 bps (`AlertConfig.max_daily_change_bps` em `config.py`; não há flag). Nunca bloqueia. É a única exceção à reprodutibilidade (16.7): mesmos t0, brutos, configuração e CDS manual dão o mesmo JSON, salvo esses alertas, que dependem da saída anterior.
+**Variação diária:** compara os campos `di`, `inflation`, `cds`, `real` e `discount`, nos dois modos e em cada ano, com a saída do dia útil imediatamente anterior, se ela existir. Alerta quando |variação| > 50 bps (`AlertConfig.max_daily_change_bps` em `config.py`; não há flag). Nunca bloqueia. Reprodutibilidade (16.7): mesmos t0, brutos, configuração e CDS manual dão o mesmo JSON, salvo esses alertas, que dependem da saída anterior, e o registro de falhas de coleta da execução original (alerta `fonte_bruto_do_dia` e texto do `fallback_reason`), que o `--offline` não refaz.
 
 ## 5. Horário do cron e operação diária
 
@@ -488,7 +491,7 @@ Sem publicação (só pendentes, só bloqueados ou nada pendente), não há comm
 
 ### Rotina diária
 
-1. **Todo dia útil:** registrar os 9 valores do CDS do dia pelo formulário **cds**. O horário não importa: se a ETTJ ainda não saiu, o daily disparado deixa o dia pendente e a execução das 21h37 publica com o CDS; se o dia já foi publicado, o daily disparado o refaz.
+1. **Todo dia útil:** registrar os 9 fechamentos do CDS pelo formulário **cds**, com `data` = o dia do fechamento lido (seção 2; de manhã, o fechamento lido é o do dia útil anterior). O horário do registro não importa para o workflow: se a ETTJ ainda não saiu, o daily disparado deixa o dia pendente e a execução das 21h37 publica com o CDS; se o dia já foi publicado, o daily disparado o refaz.
 2. **Na manhã seguinte:** na aba Actions, conferir se o **daily** ficou verde; no site, conferir a data-base, os alertas e as fontes (Atual/Defasado).
 3. **Vermelho ou dia faltando:** seção 7, com prazo de 5 dias úteis para resolver antes de o dia sair da janela.
 4. **Toda semana:** conferir se os workflows agendados continuam ativos (seção 9).
@@ -539,10 +542,12 @@ Onde está o detalhe:
 | `… anbima_ettj …: NotPublishedError: resposta vazia da ANBIMA` | Dia passado ainda sem ETTJ | Tentar de novo mais tarde; se persistir, investigar na página da ANBIMA |
 | `… anbima_ettj …: ValidationError: …` (`ANBIMA devolveu X, pedido Y`, `grade de vértices irregular`, `Circular 3.361 difere da ETTJ PREF`, `Fisher não fecha`, `fora de […]`) | Dado reprovado na validação | Conferir o CSV da ANBIMA; não forçar a publicação sem entender |
 | `Pendente: …: ETTJ da ANBIMA de … ainda não publicada` | Normal antes da publicação | Nada |
-| `BLOQUEADO: CDS manual: …` | `cds.csv` inválido (`não está em UTF-8`, `cabeçalho esperado`, `linha N: …`, `correção … precisa de preenchido_em posterior`) ou `nenhum conjunto completo de CDS até …` | Reverter a edição manual e lançar pelo `cds_add` ou pelo formulário |
-| `BLOQUEADO: cálculo: …` | `CDI sem observação em N dia(s) útil(eis)` (buraco no meio do SGS 12), `agenda do IPCA com buraco`, `a agenda de divulgações do IPCA não cobre t0`, `último IPCA divulgado … defasado`, `IPCA/Selic de MM/AAAA ausente` | Esperar a fonte corrigir e rodar de novo |
+| `BLOQUEADO: CDS manual: …` | `cds.csv` inválido (`não está em UTF-8`, `cabeçalho esperado`, `linha N: …`, `correção … precisa de preenchido_em posterior`) ou `nenhum conjunto completo de CDS até …` | Reverter a edição manual e lançar pelo `cds_add` ou pelo formulário, no mesmo dia (ver abaixo) |
+| `BLOQUEADO: cálculo: …` | `CDI sem observação em N dia(s) útil(eis)` (buraco no meio do SGS 12), `agenda do IPCA com buraco`, `a agenda de divulgações do IPCA não cobre t0`, `último IPCA divulgado … defasado`, `IPCA/Selic de MM/AAAA ausente` | Esperar a fonte corrigir e rodar de novo; se não corrigir, escalar antes de o dia sair da janela (ver abaixo) |
 | `BLOQUEADO: schema inválido: …` | Saída com NaN, infinito ou fator ≤ 0 | Bug: investigar com `--as-of D --offline` numa cópia |
 | `INVÁLIDO: <arquivo>: …` (`curvas.schema validate`) | JSON fora do schema | Idem; se `models.py` mudou, ver "Mudança de schema" (seção 3) |
+
+**Brutos de um run sem publicação não ficam no repositório.** O daily só commita `data/` quando algum dia é publicado e a validação do schema passa. Se todos os dias bloquearem por motivo alheio à ANBIMA (`CDS manual`, `cálculo`, `schema`), a ETTJ baixada se perde com o runner e só pode ser baixada de novo enquanto o dia estiver na janela de 5 dias úteis. Corrija o `cds.csv` na hora e escale um bloqueio de cálculo antes desse prazo.
 
 O log JSON (`fonte falhou`, `publicação bloqueada`) traz a causa de cada falha. Nas mensagens do CDS, "linha N" conta só as linhas de dados (sem cabeçalho e comentários): o primeiro lançamento novo do arquivo atual é a linha 10.
 
@@ -551,7 +556,7 @@ O log JSON (`fonte falhou`, `publicação bloqueada`) traz a causa de cada falha
 | Mensagem | Causa |
 |---|---|
 | `NADA GRAVADO: esperados 9 valores, vieram N` | Faltou ou sobrou valor |
-| `NADA GRAVADO: could not convert string to float: …` | Texto, valores separados por vírgula ou separador de milhar |
+| `NADA GRAVADO: could not convert string to float: …` | Texto, valores separados por vírgula ou separador de milhar com decimais (`1.045,67`; `1.045` sem decimais passa como 1,045 bps) |
 | `NADA GRAVADO: linha N: bps fora da faixa: X` | Valor ≤ 0 ou ≥ 3000 |
 | `NADA GRAVADO: linha N: data de referência D depois do preenchimento` | Data futura (inclusive sábado ou feriado futuros) |
 | `NADA GRAVADO: linha N: D não é dia útil ANBIMA` | Fim de semana ou feriado passado |
@@ -571,8 +576,9 @@ Editar `data/manual/cds.csv` no Excel pode trocar a codificação ou o separador
 | Validar o schema | Algum `data/curves/*.json` antigo fora do schema |
 | Commit dos JSON e brutos | Push recusado ou sem permissão de escrita (a organização pode limitar as permissões do `GITHUB_TOKEN`; não verificado) |
 | Build do site | `OCULTAR_CDS` inválido, com a mensagem `::error::OCULTAR_CDS inválido…` |
+| Job **deploy** | Sem o artefato do Pages: consequência de falha num passo anterior do job pipeline (schema, commit ou build); veja o primeiro passo vermelho dele. Ou o Pages não está configurado (*Settings → Pages → Source*: **GitHub Actions**, seção 8) |
 
-Se um passo depois do Pipeline falhar, os seguintes não rodam e o site anterior continua no ar.
+Se um passo depois do Pipeline falhar, os passos seguintes do job pipeline não rodam e o site anterior continua no ar. O job deploy roda mesmo assim (basta um dia publicado) e também fica vermelho, por falta do artefato.
 
 ### Dia pendente que não sai
 
@@ -582,7 +588,7 @@ Se um passo depois do Pipeline falhar, os seguintes não rodam e o site anterior
 - Datas anteriores a 29/09/2026 nunca entram.
 - O dia já tem saída com ETTJ do próprio dia e o CDS não mudou: não há o que refazer. Para forçar, rode o daily com `as_of`.
 
-Para refazer um dia fora da janela sem rede: `uv run python -m curvas.run --as-of AAAA-MM-DD --offline` no repositório, commit e push pelo GitHub Desktop. O site só é refeito no próximo daily que publicar.
+Para refazer um dia fora da janela sem rede: *Fetch origin* e *Pull* no GitHub Desktop (regra da seção 2), `uv run python -m curvas.run --as-of AAAA-MM-DD --offline` no repositório, commit e push. O site só é refeito no próximo daily que publicar.
 
 ### Site não atualiza
 
@@ -592,15 +598,16 @@ O build e o deploy só rodam quando algum dia é publicado. Uma execução com "
 
 **Calendário ANBIMA.**
 - Cobertura de 2001 a 2099; o CORRIGIDO precisa de 11 anos à frente, então o arquivo atual atende t0 até 2088.
-- Atualize quando a ANBIMA mudar os feriados: apague `data/calendar/feriados_nacionais.xls` (o script não sobrescreve) e rode os comandos abaixo.
+- Atualize quando a ANBIMA mudar os feriados: apague `data/calendar/feriados_nacionais.xls` e `data/calendar/manifest.json` (o script não sobrescreve o `.xls` e só acrescenta entradas ao manifesto; uma entrada antiga com o sha256 velho reprova `test_dados_brutos_batem_com_o_manifesto`) e rode os comandos abaixo.
 
 ```bash
 uv run python tools/baixar_dados_f2.py
 uv run --group tools python tools/converter_feriados_anbima.py
-CI=true uv run pytest -q tests/test_calendar.py
+CI=true uv run pytest -q
 ```
 
 - O primeiro comando acessa a rede e também tenta as fixtures de `tests/fixtures/f2/`, pulando as que já existem. O segundo imprime `N feriados de … a … → data/calendar/feriados_anbima.csv`.
+- Rode a suíte inteira, não só `test_calendar.py`: `test_dados_brutos_batem_com_o_manifesto` e `test_csv_de_feriados_vem_do_xls` (em `test_attribution.py`) conferem o `.xls`, o manifesto e o cabeçalho do CSV.
 - `test_dia_a_dia_igual_ao_bizdays` falha se o bizdays não tiver o feriado novo: atualize o bizdays junto.
 - Outra cobertura exige ajustar `test_cobertura`. Mudança de feriado altera os dias úteis: regenere offline as saídas afetadas, se quiser coerência.
 
@@ -633,15 +640,15 @@ CI=true uv run pytest -q
 | `src/curvas/models.py` | `uv run python -m curvas.schema export` | `test_schema_publicado_atualizado` |
 | motor ou fixtures da F2 | `uv run python tools/tabela_f2.py` | `test_tabela_publicada_esta_atualizada` |
 | planilha legada | `uv run --group tools python tools/gerar_fixtures_legado.py` | `test_fixtures_vem_da_planilha_atual` (só com a planilha local) |
-| `docs/ESPECIFICACAO.md` | nada; o site renderiza o arquivo | (muda a página Metodologia) |
+| `docs/ESPECIFICACAO.md` | nada a gerar (o site renderiza o arquivo); rode a suíte | `test_especificacao_real_sem_cds`: índice exatamente E1–E11, e os valores de CDS da planilha precisam sumir com o CDS oculto (só saem de tabelas de CDS e de frases sobre CDS) |
 
 - `tools/tabela_f2.py` é offline e regenera `docs/F2_LEGADO_X_CORRIGIDO.md` e `docs/f2_legado_x_corrigido.csv`. O texto do `.md` vem de `src/curvas/output/comparacao.py`: editar só o `.md` é desfeito na próxima execução.
 - `tools/gerar_fixtures_legado.py` precisa da planilha em `docs/legado/Query-Avila.xlsx` e do grupo `tools`. Leva cerca de 3,5 min (`--inputs-only`: só os inputs, cerca de 2 s) e grava `tests/fixtures/legacy/`, que vai para o repositório público: confira que nenhum link interno entrou.
 
 **Regenerar saídas offline** (depois de mudar o motor, por exemplo):
-- Commite o código antes, para o `git_commit` não sair `-dirty`.
+- Commite o código antes, para o `git_commit` não sair `-dirty`, e faça *Fetch origin* e *Pull* (regra da seção 2).
 - Rode `uv run python -m curvas.run --as-of D --offline` para cada data-base, em ordem crescente (os alertas de variação comparam com o dia anterior já regenerado).
-- O resultado usa o `cds.csv` de agora. Os brutos de 29/09 a 01/10/2026 têm a agenda do IBGE só até 31/12/2026; reprocessá-los depois de meados de dezembro de 2026 pode falhar por "agenda não cobre".
+- O resultado usa o `cds.csv` de agora. A cobertura da agenda do IBGE depende só de t0, não da data de hoje: os dias já publicados podem ser reprocessados offline a qualquer momento.
 
 **Integridade dos brutos.** A leitura não confere o sha256. Para conferir à mão (pastas soltas e zips):
 
@@ -673,12 +680,13 @@ EOF
 
 ## 8. Configuração inicial do repositório (uma vez)
 
-1. Publicar o repositório **público** (Q3) com o branch `main` atualizado: GitHub Desktop → *Publish repository*, com "Keep this code private" desmarcado. Os três workflows já estão no `main`.
-2. *Settings → General → Default branch*: conferir que é `main`. O cron e o botão *Run workflow* só existem para workflows do branch padrão.
+1. Deixar o `main` atualizado: no GitHub Desktop, *Current branch* → `main`; se houver branch de trabalho à frente dele, *Branch → Merge into current branch…* → esse branch. Conferir que o *Current branch* é `main`.
+2. Publicar o repositório **público** (Q3): *Publish repository*, com "Keep this code private" desmarcado. O GitHub Desktop publica só o branch atual, que vira o branch padrão no GitHub; os demais branches locais não precisam ser publicados. Depois, em *Settings → General → Default branch*, conferir que é `main`: o cron e o botão *Run workflow* só existem para workflows do branch padrão.
 3. *Settings → Pages → Build and deployment → Source:* **GitHub Actions**.
 4. `OCULTAR_CDS`: não criar (Q17 resolvida: o site mostra o CDS). Só se a decisão mudar: *Settings → Secrets and variables → Actions → Variables*, `OCULTAR_CDS` = `true`.
 5. Rodar o **daily** à mão uma vez (Actions → daily → *Run workflow*, branch `main`, `as_of` vazio), para recuperar a janela e confirmar o acesso às fontes a partir dos servidores do GitHub. **Prazo: até 08/10/2026.** Em 09/10/2026 a data-base de 02/10/2026 sai da janela da ANBIMA e se perde.
-6. Conferir o site publicado e a página Coleta do CDS (o link "Abrir o formulário" aparece a partir desse build).
+6. Conferir o site publicado e a página Coleta do CDS (o link "Abrir o formulário" aparece a partir desse build). A URL do site (`https://<conta>.github.io/<repositório>/`) aparece em *Settings → Pages* e no link do job deploy do daily.
+7. Dar acesso de escrita a cada pessoa que vai usar o formulário **cds**: *Settings → Collaborators* (em organização, *Collaborators and teams*) → *Add people*, com papel **Write** ou superior.
 
 ## 9. Cuidados
 
@@ -688,6 +696,6 @@ EOF
 - **CDS no site público (Q17):** o site e os downloads exibem o CDS copiado do Investing.com, por decisão de 02/10/2026, com o risco dos termos (§14) aceito. Para esconder, `OCULTAR_CDS` = `true` (seção 4); o repositório público continua com os valores.
 - **Planilha legada:** é interna e fica fora do repositório (`docs/legado/*.xlsx` no `.gitignore`). Os 2 testes que dependem dela são pulados quando ela não existe.
 - **`data/manual/cds.csv`:** só acréscimo, pelo `cds_add` ou pelo formulário. Nunca edite nem apague linhas antigas.
-- **Commits locais:** o bot commita `data/` todo dia. Antes de commitar pelo GitHub Desktop, faça *Fetch origin* e *Pull*.
+- **Commits locais:** o bot commita `data/` todo dia e o formulário cds commita `cds.csv`. Faça *Fetch origin* e *Pull* antes de rodar no repositório qualquer comando que escreva em `data/`, `docs/` ou `tests/fixtures/` (regra da seção 2), não só antes de commitar, e faça *Push* logo depois do commit.
 - **Comandos que escrevem no repositório:** `curvas.run`, `curvas.cds_add`, `curvas.schema export` e os scripts de `tools/` alteram arquivos versionados; para experimentar, use uma cópia (seção 2). Nunca rode `curvas.site.build --out data`.
-- **Tamanho do repositório:** o histórico cresce cerca de 0,6 MB por dia útil com os brutos; a compactação em zip não reduz o que já foi commitado.
+- **Tamanho do repositório:** o git guarda cada conteúdo uma vez, comprimido. O histórico cresce algumas dezenas de KB por dia útil (JSON de saída, cerca de 21 KB comprimido, e brutos pequenos); a agenda do IBGE, igual de um dia para o outro, só ocupa espaço novo (cerca de 50 KB) quando muda. Cada zip mensal entra como arquivo novo, de cerca de 1,2 MB (estimativa), e a compactação não reduz o que já foi commitado.
