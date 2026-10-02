@@ -2,7 +2,7 @@
  "metadata": {
   "as_of_date": "2026-10-01",
   "code_version": "0.1.0",
-  "git_commit": "a0cfbff861b81c36cdf63a024e6cf10e61ef25d5",
+  "git_commit": "7a6d164da64e05bd17b40b8378cc7646d8ba246b",
   "schema_version": "1.1",
   "default_mode": "corrected"
  },
@@ -12,7 +12,7 @@
    "requested_date": "2026-10-01",
    "source_date": "2026-10-01",
    "publication_date": null,
-   "retrieved_at": "2026-10-02T15:25:26Z",
+   "retrieved_at": "2026-10-02T19:17:35Z",
    "stale": false,
    "fallback_reason": null,
    "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp",
@@ -24,7 +24,7 @@
    "requested_date": "2026-10-01",
    "source_date": "2026-10-01",
    "publication_date": null,
-   "retrieved_at": "2026-10-02T15:25:26Z",
+   "retrieved_at": "2026-10-02T19:17:36Z",
    "stale": false,
    "fallback_reason": null,
    "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2026&dataFinal=01%2F10%2F2026",
@@ -36,7 +36,7 @@
    "requested_date": "2026-10-01",
    "source_date": "2026-08-01",
    "publication_date": "2026-09-11",
-   "retrieved_at": "2026-10-02T15:25:26Z",
+   "retrieved_at": "2026-10-02T19:17:36Z",
    "stale": false,
    "fallback_reason": null,
    "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
@@ -48,7 +48,7 @@
    "requested_date": "2026-10-01",
    "source_date": "2026-10-01",
    "publication_date": null,
-   "retrieved_at": "2026-10-02T15:25:26Z",
+   "retrieved_at": "2026-10-02T19:17:36Z",
    "stale": false,
    "fallback_reason": null,
    "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4390/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
@@ -60,7 +60,7 @@
    "requested_date": "2026-10-01",
    "source_date": "2026-09-01",
    "publication_date": null,
-   "retrieved_at": "2026-10-02T15:25:26Z",
+   "retrieved_at": "2026-10-02T19:17:36Z",
    "stale": false,
    "fallback_reason": null,
    "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.7478/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
@@ -72,12 +72,12 @@
    "requested_date": "2026-10-01",
    "source_date": null,
    "publication_date": null,
-   "retrieved_at": "2026-10-02T15:25:26Z",
+   "retrieved_at": "2026-10-02T19:17:37Z",
    "stale": false,
    "fallback_reason": null,
-   "url": "https://servicodados.ibge.gov.br/api/v3/calendario/?de=01-01-2025&ate=12-31-2026&qtd=1000",
-   "sha256": "7510cb3ae7ef5e170b2f9e4929fb1173242c90ba69b9dcebeaa1a3be9e4bbc8b",
-   "raw_path": "2026/10/2026-10-01/ibge_calendario.json"
+   "url": "https://servicodados.ibge.gov.br/api/v3/calendario/?de=01-01-2025&ate=12-31-2027&qtd=1000",
+   "sha256": "464d5fb6a5d8e5dde10b17eb683b0c6f7c6d25e1221e2e3420386b44cb9a4912",
+   "raw_path": "2026/10/2026-10-01/ibge_calendario.v2.json"
   },
   {
    "source": "cds_manual",
@@ -1391,237 +1391,237 @@
     {
      "days": 1680,
      "rate": 0.14325033333333373,
-     "factor": 2.3905559429542094
+     "factor": 2.390555942954209
     },
     {
      "days": 1701,
      "rate": 0.1432540000000006,
-     "factor": 2.4173753180443853
+     "factor": 2.417375318044385
     },
     {
      "days": 1722,
      "rate": 0.14325766666666748,
-     "factor": 2.4444962299880024
+     "factor": 2.444496229988002
     },
     {
      "days": 1743,
      "rate": 0.14326133333333435,
-     "factor": 2.471922076350525
+     "factor": 2.4719220763505247
     },
     {
      "days": 1764,
      "rate": 0.143265,
-     "factor": 2.499656293061495
+     "factor": 2.4996562930614945
     },
     {
      "days": 1785,
      "rate": 0.14326199999999983,
-     "factor": 2.5277017114505522
+     "factor": 2.527701711450552
     },
     {
      "days": 1806,
      "rate": 0.14325899999999966,
-     "factor": 2.5560612323567025
+     "factor": 2.556061232356702
     },
     {
      "days": 1827,
      "rate": 0.1432559999999995,
-     "factor": 2.5847383673756426
+     "factor": 2.584738367375642
     },
     {
      "days": 1848,
      "rate": 0.14325299999999933,
-     "factor": 2.613736667291413
+     "factor": 2.6137366672914126
     },
     {
      "days": 1869,
      "rate": 0.14324999999999916,
-     "factor": 2.643059722512936
+     "factor": 2.6430597225129357
     },
     {
      "days": 1890,
      "rate": 0.143247,
-     "factor": 2.6727111635154097
+     "factor": 2.6727111635154093
     },
     {
      "days": 1911,
      "rate": 0.14323900000000014,
-     "factor": 2.702694145321364
+     "factor": 2.7026941453213635
     },
     {
      "days": 1932,
      "rate": 0.14323100000000027,
-     "factor": 2.7330118881906005
+     "factor": 2.7330118881906
     },
     {
      "days": 1953,
      "rate": 0.1432230000000004,
-     "factor": 2.763668111770471
+     "factor": 2.7636681117704707
     },
     {
      "days": 1974,
      "rate": 0.14321500000000054,
-     "factor": 2.7946665768369026
+     "factor": 2.794666576836902
     },
     {
      "days": 1995,
      "rate": 0.14320700000000067,
-     "factor": 2.8260110857469085
+     "factor": 2.826011085746908
     },
     {
      "days": 2016,
      "rate": 0.143199,
-     "factor": 2.857705482896052
+     "factor": 2.8577054828960518
     },
     {
      "days": 2037,
      "rate": 0.14318733333333325,
-     "factor": 2.889753250600295
+     "factor": 2.8897532506002945
     },
     {
      "days": 2058,
      "rate": 0.1431756666666665,
-     "factor": 2.922157933179847
+     "factor": 2.9221579331798466
     },
     {
      "days": 2079,
      "rate": 0.14316399999999976,
-     "factor": 2.9549234775016204
+     "factor": 2.95492347750162
     },
     {
      "days": 2100,
      "rate": 0.14315233333333302,
-     "factor": 2.988053873762903
+     "factor": 2.9880538737629028
     },
     {
      "days": 2121,
      "rate": 0.14314066666666628,
-     "factor": 3.0215531559635513
+     "factor": 3.021553155963551
     },
     {
      "days": 2142,
      "rate": 0.143129,
-     "factor": 3.0554254023832783
+     "factor": 3.055425402383278
     },
     {
      "days": 2163,
      "rate": 0.14311450000000006,
-     "factor": 3.0896744017838693
+     "factor": 3.089674401783869
     },
     {
      "days": 2184,
      "rate": 0.14310000000000012,
-     "factor": 3.1243040039098404
+     "factor": 3.12430400390984
     },
     {
      "days": 2205,
      "rate": 0.14308550000000017,
-     "factor": 3.159318400958681
+     "factor": 3.1593184009586808
     },
     {
      "days": 2226,
      "rate": 0.14307100000000023,
-     "factor": 3.1947218308840073
+     "factor": 3.194721830884007
     },
     {
      "days": 2247,
      "rate": 0.14305650000000028,
-     "factor": 3.2305185778902947
+     "factor": 3.2305185778902943
     },
     {
      "days": 2268,
      "rate": 0.143042,
-     "factor": 3.266712972932924
+     "factor": 3.2667129729329236
     },
     {
      "days": 2289,
      "rate": 0.1430256666666669,
-     "factor": 3.303309162950742
+     "factor": 3.3033091629507414
     },
     {
      "days": 2310,
      "rate": 0.14300933333333382,
-     "factor": 3.3403113535392324
+     "factor": 3.340311353539232
     },
     {
      "days": 2331,
      "rate": 0.14299300000000073,
-     "factor": 3.377724003859866
+     "factor": 3.3777240038598655
     },
     {
      "days": 2352,
      "rate": 0.14297666666666764,
-     "factor": 3.4155516215444934
+     "factor": 3.415551621544493
     },
     {
      "days": 2373,
      "rate": 0.14296033333333455,
-     "factor": 3.4537987632165987
+     "factor": 3.4537987632165983
     },
     {
      "days": 2394,
      "rate": 0.142944,
-     "factor": 3.4924700350180853
+     "factor": 3.492470035018085
     },
     {
      "days": 2415,
      "rate": 0.142944,
-     "factor": 3.5315722961295304
+     "factor": 3.53157229612953
     },
     {
      "days": 2436,
      "rate": 0.142944,
-     "factor": 3.5711123525001174
+     "factor": 3.571112352500117
     },
     {
      "days": 2457,
      "rate": 0.142944,
-     "factor": 3.6110951057565934
+     "factor": 3.611095105756593
     },
     {
      "days": 2478,
      "rate": 0.142944,
-     "factor": 3.6515255124051134
+     "factor": 3.651525512405113
     },
     {
      "days": 2499,
      "rate": 0.142944,
-     "factor": 3.6924085844456807
+     "factor": 3.69240858444568
     },
     {
      "days": 2520,
      "rate": 0.142944,
-     "factor": 3.733749389993462
+     "factor": 3.7337493899934615
     },
     {
      "days": 2541,
      "rate": 0.142944,
-     "factor": 3.775553053907063
+     "factor": 3.7755530539070628
     },
     {
      "days": 2562,
      "rate": 0.142944,
-     "factor": 3.8178247584238405
+     "factor": 3.81782475842384
     },
     {
      "days": 2583,
      "rate": 0.142944,
-     "factor": 3.86056974380232
+     "factor": 3.8605697438023197
     },
     {
      "days": 2604,
      "rate": 0.142944,
-     "factor": 3.903793308971812
+     "factor": 3.9037933089718115
     },
     {
      "days": 2625,
      "rate": 0.142944,
-     "factor": 3.947500812189297
+     "factor": 3.9475008121892965
     },
     {
      "days": 2646,
      "rate": 0.142944,
-     "factor": 3.9916976717036743
+     "factor": 3.991697671703674
     }
    ]
   },
@@ -4574,11 +4574,11 @@
    },
    {
     "year": 2033,
-    "di": 0.14325184650637568,
+    "di": 0.14325184650637546,
     "inflation": 0.061930433802168006,
     "cds": 0.016795796626844828,
     "real": 0.07657885122760999,
-    "discount": 0.16245367201356165
+    "discount": 0.16245367201356142
    },
    {
     "year": 2034,
@@ -4843,11 +4843,11 @@
   },
   {
    "year": 2033,
-   "di_bps": -2.605763467264932,
+   "di_bps": -2.6057634672627117,
    "inflation_bps": 20.53305929681004,
    "cds_bps": 113.3916827793735,
    "real_bps": -23.22518656482364,
-   "discount_bps": 126.95617418501782
+   "discount_bps": 126.95617418502003
   },
   {
    "year": 2034,
