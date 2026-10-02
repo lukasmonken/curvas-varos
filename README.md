@@ -1,12 +1,75 @@
 # Plataforma de Curvas VAROS
 
-Em construção. A documentação de operação completa entra na fase F6.
+Converte as curvas de mercado (DI, inflação implícita e CDS Brasil) em premissas anuais de 2026 a 2036, em dois modos: **LEGADO** (as fórmulas da planilha antiga) e **CORRIGIDO** (metodologia da especificação, E8). A documentação completa de operação é a fase F6; esta página cobre o que já existe.
 
-- Especificação: [docs/ESPECIFICACAO.md](docs/ESPECIFICACAO.md)
-- Auditoria da planilha (F0): [docs/F0_AUDITORIA.md](docs/F0_AUDITORIA.md)
-- Questões em aberto: [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md)
+- Instruções do projeto: [docs/INSTRUCOES.md](docs/INSTRUCOES.md) · Especificação: [docs/ESPECIFICACAO.md](docs/ESPECIFICACAO.md)
+- Decisões e pendências: [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md)
+- Auditoria da planilha (F0): [docs/F0_AUDITORIA.md](docs/F0_AUDITORIA.md) · LEGADO × CORRIGIDO (F2): [docs/F2_LEGADO_X_CORRIGIDO.md](docs/F2_LEGADO_X_CORRIGIDO.md)
+- Schema da saída: [docs/schema.json](docs/schema.json)
+
+## Uso local
 
 ```bash
 uv sync
 uv run pytest
+uv run python -m curvas.run --as-of 2026-10-01   # uma data-base, coletando as fontes
+uv run python -m curvas.run --catch-up           # dias úteis pendentes (modo do workflow)
+uv run python -m curvas.run --as-of 2026-10-01 --offline   # refaz só com os brutos gravados
 ```
+
+Saídas: `data/curves/AAAA-MM-DD.json` (uma por data-base) e `data/latest.json`. Brutos em `data/raw/AAAA/MM/AAAA-MM-DD/` com `manifest.json`; meses com mais de 90 dias viram `data/raw/AAAA/MM.zip`.
+
+## CDS: entrada manual diária
+
+Não há fonte gratuita que permita coleta automática (`docs/F3_DIAGNOSTICO_CDS.md`, Q16). Uma vez por dia útil, alguém consulta os 9 vértices e registra:
+
+```bash
+uv run python -m curvas.cds_add --data 2026-10-01 --por "Nome" --valores "45.67 54.35 67.89 87.28 109.84 130.71 171.71 213.22 245.59"
+```
+
+A ordem é 6M 1A 2A 3A 4A 5A 7A 10A 20A, em bps. Sem `--valores`, o comando pergunta um por um. Para corrigir um dia, basta rodar de novo: a linha mais recente vale. Sem CDS do dia, o pipeline usa o último disponível, marca `stale` e gera alerta.
+
+## Operação diária (GitHub Actions)
+
+### Horário do cron
+
+| Execução | BRT | Cron (UTC) | Por quê |
+|---|---|---|---|
+| Principal | 21h37, seg–sex | `37 0 * * 2-6` | A ETTJ da ANBIMA sai entre 19h e 20h (ANBIMA Feed: "a partir das 20h"). O CDI da véspera de t0 está no SGS desde a manhã. A Selic do dia sai até 19h. |
+| Recuperação | 07h23, ter–sáb | `23 10 * * 2-6` | O agendamento do GitHub atrasa em picos e às vezes descarta execuções. |
+
+- O Brasil não tem horário de verão desde 2019 (Decreto 9.772/2019), então BRT = UTC−3 o ano todo.
+- Os minutos "quebrados" evitam o pico do início da hora.
+- As duas execuções rodam `--catch-up`: processam todo dia útil ANBIMA pendente dentro da janela de 5 dias úteis que a página pública da ANBIMA guarda.
+- Dia sem ETTJ publicada fica para a próxima execução; nunca sai como dado defasado.
+- Em dia não útil não há nada pendente, e o workflow termina sem publicar.
+
+### Sequência (`.github/workflows/daily.yml`)
+
+1. `uv sync --locked`
+2. testes: ruff, mypy e pytest; teste falhando bloqueia
+3. `python -m curvas.run --catch-up`
+4. validação do schema
+5. commit dos JSON e brutos (`[skip ci]`)
+6. build do site
+7. deploy no GitHub Pages
+
+Um dia bloqueado (schema inválido, NaN, fator inválido, fonte sem nenhum dado válido) faz o workflow falhar, sem impedir os outros dias.
+
+Execução manual: aba Actions → **daily** → *Run workflow*. O campo `as_of` vazio faz a recuperação; com uma data, roda só aquela data-base.
+
+### Credenciais
+
+Nenhum segredo é necessário. As fontes são públicas, e o commit e o deploy usam o `GITHUB_TOKEN` automático, com as permissões declaradas em cada job.
+
+### Configuração inicial do repositório (uma vez)
+
+1. Criar o repositório **público** no GitHub (Q3) e enviar o branch `main`.
+2. *Settings → Pages → Build and deployment → Source:* **GitHub Actions**.
+3. Rodar o workflow **daily** à mão uma vez, para confirmar o acesso às fontes a partir dos servidores do GitHub.
+
+### Cuidados
+
+- **Inatividade:** em repositório público, o GitHub desativa workflows agendados depois de 60 dias sem atividade no repositório, e não está documentado se os commits do bot contam. Se o workflow for desativado, reative-o na aba Actions.
+- **ANBIMA:** a página das curvas avisa que a aba será desligada e que as curvas ficarão só no ANBIMA Data (Q19). Se o download parar, o pipeline usa o último dado válido com alerta e os testes do coletor continuam passando com as respostas gravadas. O coletor terá de ser trocado.
+- **Planilha legada:** é interna e fica fora do repositório (`docs/legado/*.xlsx` no `.gitignore`). Os testes que dependem dela são pulados quando ela não existe.

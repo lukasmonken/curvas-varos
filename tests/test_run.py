@@ -16,13 +16,16 @@ import pytest
 
 import curvas.run as run_module
 from conftest import ROOT
+from curvas.calendar import load_anbima_calendar
 from curvas.config import DEFAULT, AlertConfig
 from curvas.engine.legacy import compute_legacy
+from curvas.fetch.http import FetchError
 from curvas.fetch.raw import compact_old_months, day_dir, read_raw, store_raw
+from curvas.fetch.sources import fetch_sgs
 from curvas.models import RunOutput
 from curvas.normalize.anbima_ettj import parse_anbima_ettj
 from curvas.normalize.legacy_inputs import build_legacy_inputs
-from curvas.run import BlockingError, Paths, main, run, write_output
+from curvas.run import BlockingError, Paths, catch_up, main, pending_dates, run, write_output
 from curvas.schema import SCHEMA_PATH, schema_text
 from curvas.site.build import build
 
@@ -309,3 +312,85 @@ def test_site_provisorio(tmp_path: Path) -> None:
     assert (tmp_path / "site" / "latest.json").read_text() == (
         tmp_path / "out" / "latest.json"
     ).read_text()
+
+
+class TestRecuperacao:
+    def test_dias_pendentes(self, tmp_path: Path) -> None:
+        cal = load_anbima_calendar()
+        p = paths(tmp_path)
+        # Sem saída gravada: a janela inteira de 5 dias úteis (07/09 é feriado).
+        assert pending_dates(date(2026, 9, 11), p, cal) == [
+            date(2026, 9, 4),
+            date(2026, 9, 8),
+            date(2026, 9, 9),
+            date(2026, 9, 10),
+            date(2026, 9, 11),
+        ]
+        go(tmp_path, T0)
+        assert pending_dates(date(2026, 10, 3), p, cal) == [
+            date(2026, 9, 30),
+            date(2026, 10, 1),
+            date(2026, 10, 2),
+        ]
+
+    def test_dia_sem_ettj_fica_pendente_e_depois_sai(self, tmp_path: Path) -> None:
+        go(tmp_path, T0)
+        first = catch_up(
+            today=date(2026, 9, 30),
+            client=client({"anbima:2026-09-30": b""}),
+            paths=paths(tmp_path),
+            git_commit=COMMIT,
+        )
+        assert first.published == []
+        assert [d for d, _ in first.not_ready] == [date(2026, 9, 30)]
+        assert not (tmp_path / "out" / "curves" / "2026-09-30.json").exists()
+        second = catch_up(
+            today=date(2026, 9, 30), client=client(), paths=paths(tmp_path), git_commit=COMMIT
+        )
+        assert [r.as_of for r in second.published] == [date(2026, 9, 30)]
+        third = catch_up(
+            today=date(2026, 9, 30), client=client(), paths=paths(tmp_path), git_commit=COMMIT
+        )
+        assert (third.published, third.not_ready, third.blocked) == ([], [], [])
+
+    def test_dia_bloqueado_nao_impede_os_outros(self, tmp_path: Path) -> None:
+        res = catch_up(
+            today=date(2026, 9, 29), client=client(), paths=paths(tmp_path), git_commit=COMMIT
+        )
+        # Sem CDS manual antes de 29/09: 23 a 28/09 bloqueiam; 29/09 sai.
+        assert [r.as_of for r in res.published] == [T0]
+        assert {d for d, _ in res.blocked} == {
+            date(2026, 9, 23),
+            date(2026, 9, 24),
+            date(2026, 9, 25),
+            date(2026, 9, 28),
+        }
+        assert all("CDS manual" in why for _, why in res.blocked)
+
+
+def test_bcb_html_com_status_200_e_repetido() -> None:
+    calls: list[int] = []
+    body = SGS_FILES["12"].read_bytes()
+
+    def serve(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(200, content=b"<html>A sua requisicao foi rejeitada</html>")
+        return httpx.Response(200, content=body)
+
+    waits: list[float] = []
+    got = fetch_sgs(
+        httpx.Client(transport=httpx.MockTransport(serve)),
+        12,
+        date(2026, 1, 1),
+        T0,
+        as_of=T0,
+        sleep=waits.append,
+    )
+    assert got.content == body
+    assert waits == [2.0]
+    always_html = httpx.Client(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, content=b"<html>x</html>"))
+    )
+    with pytest.raises(FetchError, match="conteúdo inesperado"):
+        fetch_sgs(always_html, 12, date(2026, 1, 1), T0, as_of=T0, sleep=lambda _s: None)

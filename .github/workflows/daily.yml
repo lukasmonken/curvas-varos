@@ -1,0 +1,121 @@
+# Seção 13: pipeline diário. Horários e motivos no README ("Operação diária").
+#
+# - 21h37 BRT, seg–sex (00h37 UTC, ter–sáb): a ETTJ da ANBIMA sai entre 19h e 20h.
+# - 07h23 BRT, ter–sáb (10h23 UTC): recuperação, caso a primeira atrase ou seja descartada.
+#
+# O cron do GitHub é em UTC (o Brasil não tem horário de verão desde 2019) e pode
+# atrasar ou descartar execuções em horário de pico; por isso os minutos "quebrados"
+# e o modo --catch-up, que processa todo dia útil pendente da janela da ANBIMA.
+name: daily
+
+on:
+  schedule:
+    - cron: "37 0 * * 2-6"
+    - cron: "23 10 * * 2-6"
+  workflow_dispatch:
+    inputs:
+      as_of:
+        description: "t0 (AAAA-MM-DD). Vazio = recuperação dos dias pendentes."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    outputs:
+      published: ${{ steps.run.outputs.published }}
+    env:
+      TZ: America/Sao_Paulo
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Instalar
+        run: uv sync --locked
+
+      - name: Testes (bloqueiam a publicação)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy
+          uv run pytest -q
+
+      - name: Pipeline
+        id: run
+        env:
+          AS_OF: ${{ inputs.as_of }}
+        run: |
+          set +e
+          if [ -n "$AS_OF" ]; then
+            uv run python -m curvas.run --as-of "$AS_OF"
+          else
+            uv run python -m curvas.run --catch-up
+          fi
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Validar o schema da saída
+        if: steps.run.outputs.published == 'true'
+        run: uv run python -m curvas.schema validate data/latest.json data/curves/*.json
+
+      - name: Commit dos JSON e brutos
+        if: steps.run.outputs.published == 'true'
+        env:
+          AS_OF: ${{ steps.run.outputs.as_of }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "Nada novo para commitar."
+          else
+            git commit -m "dados: t0 = ${AS_OF} [skip ci]"
+            git pull --rebase
+            git push
+          fi
+
+      - name: Build do site
+        if: steps.run.outputs.published == 'true'
+        run: uv run python -m curvas.site.build --out site
+
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.run.outputs.published == 'true'
+        with:
+          path: site/
+
+      - name: Falhar se algum dia foi bloqueado
+        if: steps.run.outputs.rc != '0'
+        run: |
+          echo "::error::Publicação bloqueada em pelo menos um dia; veja o log do passo Pipeline."
+          exit 1
+
+  deploy:
+    needs: pipeline
+    if: needs.pipeline.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

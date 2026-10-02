@@ -24,6 +24,11 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _is_json(resp: httpx.Response) -> bool:
+    """SGS e IBGE respondem JSON; HTML (bloqueio, erro) com status 200 é recusado."""
+    return resp.content.lstrip()[:1] in (b"[", b"{")
+
+
 def fetch_anbima_ettj(
     client: httpx.Client,
     as_of: date,
@@ -65,7 +70,14 @@ def fetch_sgs(
     params = {"formato": "json", "dataInicial": f"{start:%d/%m/%Y}", "dataFinal": f"{end:%d/%m/%Y}"}
     url = cfg.urls.bcb_sgs.format(code=code)
     resp = request_with_retry(
-        client, "GET", url, source=f"bcb_sgs_{code}", params=params, cfg=cfg.http, sleep=sleep
+        client,
+        "GET",
+        url,
+        source=f"bcb_sgs_{code}",
+        params=params,
+        cfg=cfg.http,
+        sleep=sleep,
+        accept=_is_json,
     )
     return Fetched(f"bcb_sgs_{code}", str(resp.url), as_of, now(), resp.content)
 
@@ -90,5 +102,6 @@ def fetch_ibge_calendar(
         params=params,
         cfg=cfg.http,
         sleep=sleep,
+        accept=_is_json,
     )
     return Fetched("ibge_calendario", str(resp.url), as_of, now(), resp.content)

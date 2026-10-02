@@ -32,11 +32,15 @@ def request_with_retry(
     data: Mapping[str, str] | None = None,
     cfg: HttpConfig = DEFAULT.http,
     sleep: Callable[[float], None] = time.sleep,
+    accept: Callable[[httpx.Response], bool] | None = None,
 ) -> httpx.Response:
     """Faz a requisição; repete em erro de rede, timeout e status transitório.
 
     Espera ``backoff_base · 2^(tentativa−1)`` segundos (limitado a ``backoff_max``)
-    entre tentativas. Status 4xx que não seja 429 falha na hora: repetir não ajuda.
+    entre tentativas. Status 4xx que não seja 408 ou 429 falha na hora: repetir não
+    ajuda. ``accept`` confere o conteúdo de uma resposta 2xx; se recusar, a resposta
+    conta como falha transitória (o BCB às vezes devolve 200 com uma página HTML de
+    "requisição rejeitada").
     """
     last_error: str = ""
     retry_after: float | None = None
@@ -54,7 +58,9 @@ def request_with_retry(
             )
             raise FetchError(f"{source}: {type(exc).__name__}: {exc} ({url})") from exc
         else:
-            if resp.status_code < 400:
+            if resp.status_code < 400 and accept is not None and not accept(resp):
+                last_error = f"HTTP {resp.status_code} com conteúdo inesperado"
+            elif resp.status_code < 400:
                 log.info(
                     "fetch ok",
                     extra={
@@ -66,8 +72,9 @@ def request_with_retry(
                     },
                 )
                 return resp
-            last_error = f"HTTP {resp.status_code}"
-            if resp.status_code not in cfg.retry_statuses:
+            else:
+                last_error = f"HTTP {resp.status_code}"
+            if resp.status_code >= 400 and resp.status_code not in cfg.retry_statuses:
                 log.error(
                     "fetch falhou sem retry",
                     extra={"source": source, "url": str(resp.url), "status": resp.status_code},

@@ -1,6 +1,7 @@
 """Pipeline diário (Parte 1, seções 6, 7, 11, 12 e 13).
 
     python -m curvas.run [--as-of AAAA-MM-DD] [--offline] [--today AAAA-MM-DD]
+    python -m curvas.run --catch-up        # modo do workflow diário
 
 fetch → validate → normalize → compute → compare → alerts → write. O build do site
 é da F5. Sem ``--as-of``, t0 = hoje (horário de Brasília) se for dia útil ANBIMA;
@@ -60,6 +61,10 @@ BRT = timezone(timedelta(hours=-3))  # sem horário de verão desde 2019
 
 class BlockingError(RuntimeError):
     """Falha que bloqueia a publicação (seção 12)."""
+
+
+class NotReadyError(RuntimeError):
+    """A ETTJ de t0 ainda não saiu; no modo de recuperação o dia fica para a próxima."""
 
 
 @dataclass(frozen=True)
@@ -432,6 +437,7 @@ def run(
     git_commit: str | None = None,
     gap_rule: InflationGapRule = InflationGapRule.CURVE,
     retrieved_at: datetime | None = None,
+    require_fresh_curves: bool = False,
 ) -> RunResult:
     cal = load_anbima_calendar(paths.holidays) if paths.holidays else load_anbima_calendar()
     if as_of is None:
@@ -446,6 +452,9 @@ def run(
     sources: dict[str, Collected] = {}
     for spec in source_specs(client, as_of, cfg):
         got = collect(spec, as_of, offline=offline, raw_root=paths.raw_root)
+        if require_fresh_curves and spec.source == "anbima_ettj" and got.record.stale:
+            # E8.1: t0 é um dia com curvas; sem a ETTJ do dia, não há o que publicar.
+            raise NotReadyError(f"ETTJ da ANBIMA de {as_of:%d/%m/%Y} ainda não disponível")
         sources[spec.source] = got
         alerts += got.alerts
     try:
@@ -482,6 +491,62 @@ def run(
     return RunResult("published", as_of, "ok", output, path)
 
 
+ANBIMA_WINDOW = 5  # a página pública da ANBIMA só guarda os últimos 5 dias úteis
+
+
+def pending_dates(today: date, paths: Paths, cal: BusinessCalendar) -> list[date]:
+    """Dias úteis da janela da ANBIMA (até hoje) posteriores à última saída gravada."""
+    window: list[date] = []
+    day = today
+    while len(window) < ANBIMA_WINDOW:
+        if cal.is_business_day(day):
+            window.append(day)
+        day -= timedelta(days=1)
+    existing = sorted(p.stem for p in paths.curves_dir.glob("*.json"))
+    last = date.fromisoformat(existing[-1]) if existing else None
+    return sorted(d for d in window if last is None or d > last)
+
+
+@dataclass(frozen=True)
+class CatchUpResult:
+    published: list[RunResult]
+    not_ready: list[tuple[date, str]]
+    blocked: list[tuple[date, str]]
+
+
+def catch_up(
+    *,
+    today: date | None = None,
+    client: httpx.Client | None = None,
+    paths: Paths = Paths(),  # noqa: B008
+    cfg: Config = DEFAULT,
+    git_commit: str | None = None,
+    gap_rule: InflationGapRule = InflationGapRule.CURVE,
+) -> CatchUpResult:
+    """Modo de recuperação do workflow diário (seção 13).
+
+    O agendamento do GitHub atrasa e às vezes descarta execuções; por isso cada
+    execução processa todos os dias úteis pendentes dentro da janela da ANBIMA. Dia
+    sem ETTJ publicada fica para a próxima execução (nunca sai como dado defasado).
+    """
+    cal = load_anbima_calendar(paths.holidays) if paths.holidays else load_anbima_calendar()
+    today = today or datetime.now(BRT).date()
+    published: list[RunResult] = []
+    not_ready: list[tuple[date, str]] = []
+    blocked: list[tuple[date, str]] = []
+    for day in pending_dates(today, paths, cal):
+        try:
+            published.append(
+                run(as_of=day, client=client, paths=paths, cfg=cfg, git_commit=git_commit,
+                    gap_rule=gap_rule, require_fresh_curves=True)
+            )  # fmt: skip
+        except NotReadyError as exc:
+            not_ready.append((day, str(exc)))
+        except BlockingError as exc:
+            blocked.append((day, str(exc)))
+    return CatchUpResult(published, not_ready, blocked)
+
+
 def write_output(output: RunOutput, paths: Paths) -> Path:
     """``data/curves/AAAA-MM-DD.json`` e, se for a data mais recente, ``data/latest.json``."""
     text = output.model_dump_json(indent=1) + "\n"
@@ -505,10 +570,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--ipca15", action="store_true", help="Forma A do IPCA-15 (Q13; desligada por padrão)"
     )
+    parser.add_argument(
+        "--catch-up",
+        action="store_true",
+        help="processa os dias úteis pendentes da janela da ANBIMA (modo do workflow diário)",
+    )
     args = parser.parse_args(argv)
     logs.configure()
     gap_rule = InflationGapRule.IPCA15_SAME_MONTH if args.ipca15 else InflationGapRule.CURVE
     client = None if args.offline else make_client(DEFAULT.http)
+    if args.catch_up:
+        try:
+            return _main_catch_up(args.today, client, gap_rule)
+        finally:
+            if client is not None:
+                client.close()
     try:
         result = run(
             as_of=args.as_of, today=args.today, offline=args.offline, client=client,
@@ -530,6 +606,25 @@ def main(argv: list[str] | None = None) -> int:
     n = len(result.output.alerts)
     print(f"Publicado: t0 = {result.as_of}, {n} alerta(s), {result.path}")
     return 0
+
+
+def _main_catch_up(
+    today: date | None, client: httpx.Client | None, gap_rule: InflationGapRule
+) -> int:
+    res = catch_up(today=today, client=client, gap_rule=gap_rule)
+    for r in res.published:
+        assert r.output is not None
+        print(f"Publicado: t0 = {r.as_of}, {len(r.output.alerts)} alerta(s), {r.path}")
+    for day, why in res.not_ready:
+        print(f"Pendente: {day}: {why}")
+    for day, why in res.blocked:
+        log.error("publicação bloqueada", extra={"as_of": str(day), "error": why})
+        print(f"BLOQUEADO: {day}: {why}", file=sys.stderr)
+    if not (res.published or res.not_ready or res.blocked):
+        print("Nada pendente.")
+    last = max((r.as_of for r in res.published if r.as_of), default=None)
+    _github_output(published=bool(res.published), as_of=last)
+    return 1 if res.blocked else 0
 
 
 def _github_output(*, published: bool, as_of: date | None) -> None:

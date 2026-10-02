@@ -22,6 +22,7 @@ Status: `ABERTA` até resposta explícita. Coluna "Bloqueia" indica a primeira f
 | Q16 | CDS diário, gratuito e automático | — | ABERTA (meta; ver texto) |
 | Q17 | CDS copiado do Investing.com num repositório público | F5 | ABERTA (jurídico) |
 | Q18 | CDI do SGS atrasado na véspera de t0 | — | PROVISÓRIO: repetir a última taxa, com alerta |
+| Q19 | ANBIMA vai desligar a aba das curvas (download CZ-down.asp) | — | RISCO: monitorar |
 
 ## Q1. Curva de inflação implícita
 
@@ -186,4 +187,12 @@ Com a Q3 (repositório público), `data/manual/cds.csv` e o JSON publicado expõ
 ## Q18. CDI do SGS atrasado (regra operacional provisória, 02/10/2026)
 
 O CORRIGIDO precisa do CDI diário (SGS 12) de 1º/jan até a véspera de t0 (Q11-B). Se o BCB ainda não tiver publicado os últimos dias quando o pipeline rodar, os dias que faltam **no fim** da série repetem a última taxa observada. O CDI só muda depois das reuniões do Copom, então o erro esperado é nulo ou muito pequeno. A fonte fica marcada no alerta `cdi_preenchido`. Um buraco no meio da série não é preenchido: bloqueia. Alternativa, se preferir: bloquear a publicação até o dado sair. A coleta manual assistida do CDS (Q16, item 2) está em `python -m curvas.cds_add`.
+
+## Q19. Risco: a ANBIMA vai desligar a aba das curvas (registrado em 02/10/2026)
+
+A página [curvas de juros fechamento](https://www.anbima.com.br/pt_br/informar/curvas-de-juros-fechamento.htm) traz um aviso de 17/03/2026: em breve a aba será desligada, e as curvas de juros e de crédito ficarão exclusivamente no **ANBIMA Data**. O endpoint usado pelo coletor (`est-termo/CZ-down.asp`) pode deixar de existir sem aviso.
+
+- **Enquanto funcionar:** nada muda. Se o download falhar, o pipeline usa o último dado válido com `stale` e alerta, e o modo de recuperação não publica dia sem curva.
+- **Preparação:** levantar o acesso às curvas no ANBIMA Data (cadastro, API, termos de uso e se há custo) antes do desligamento. Trocar de fonte exige registro aqui (regra "não troque fontes sem documentar").
+- **Alternativa para o DI:** taxas referenciais DI × Pré da B3 (E9). Seria troca de fonte, com decisão sua.
 
