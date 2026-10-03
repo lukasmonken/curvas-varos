@@ -1,0 +1,26 @@
+[
+ {
+  "file": "anbima_ettj.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp",
+  "requested_date": "2026-10-02",
+  "source_date": "2026-10-02",
+  "publication_date": null,
+  "retrieved_at": "2026-10-03T05:43:34+00:00",
+  "sha256": "a254ebf789b41cb83838d9b0df29c4d094f1a4c37ddf0f1400d94637267af1f7",
+  "bytes": 2899,
+  "duplicate": false
+ },
+ {
+  "file": "ibge_calendario.json",
+  "source": "ibge_calendario",
+  "url": "https://servicodados.ibge.gov.br/api/v3/calendario/?de=01-01-2025&ate=12-31-2027&qtd=1000",
+  "requested_date": "2026-10-02",
+  "source_date": null,
+  "publication_date": null,
+  "retrieved_at": "2026-10-03T05:44:32+00:00",
+  "sha256": "464d5fb6a5d8e5dde10b17eb683b0c6f7c6d25e1221e2e3420386b44cb9a4912",
+  "bytes": 666010,
+  "duplicate": false
+ }
+]
