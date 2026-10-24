@@ -1,0 +1,62 @@
+[
+ {
+  "file": "anbima_ettj.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp",
+  "requested_date": "2026-10-23",
+  "source_date": "2026-10-23",
+  "publication_date": null,
+  "retrieved_at": "2026-10-24T05:00:10+00:00",
+  "sha256": "4129ed93ce8c26cbcd4a1626f6370393a536edabba39153cf27f35ae7ec786fe",
+  "bytes": 2906,
+  "duplicate": false
+ },
+ {
+  "file": "bcb_sgs_12.json",
+  "source": "bcb_sgs_12",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2026&dataFinal=23%2F10%2F2026",
+  "requested_date": "2026-10-23",
+  "source_date": "2026-10-22",
+  "publication_date": null,
+  "retrieved_at": "2026-10-24T05:00:24+00:00",
+  "sha256": "68647e0ecd93da25975c27f1cc4f57af66873a3cabe54b8039891e772d9d5b1b",
+  "bytes": 8283,
+  "duplicate": false
+ },
+ {
+  "file": "bcb_sgs_433.json",
+  "source": "bcb_sgs_433",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
+  "requested_date": "2026-10-23",
+  "source_date": "2026-09-01",
+  "publication_date": null,
+  "retrieved_at": "2026-10-24T05:00:24+00:00",
+  "sha256": "48a58769ef3976fecb0c70dbdb1f814e36f78fa59e11178e38d4a02b3a21b809",
+  "bytes": 780,
+  "duplicate": false
+ },
+ {
+  "file": "bcb_sgs_4390.json",
+  "source": "bcb_sgs_4390",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4390/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
+  "requested_date": "2026-10-23",
+  "source_date": "2026-10-01",
+  "publication_date": null,
+  "retrieved_at": "2026-10-24T05:00:25+00:00",
+  "sha256": "eec2393e132ec56a530ca4df8716f3a4ffcc556234bb24d408ae930bee182e34",
+  "bytes": 815,
+  "duplicate": false
+ },
+ {
+  "file": "bcb_sgs_7478.json",
+  "source": "bcb_sgs_7478",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.7478/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
+  "requested_date": "2026-10-23",
+  "source_date": "2026-10-01",
+  "publication_date": null,
+  "retrieved_at": "2026-10-24T05:00:25+00:00",
+  "sha256": "3f3c8d52c584f05a42ba0a598f9f2fb0657ab1cc074bf48c4358e742e18ece6c",
+  "bytes": 817,
+  "duplicate": false
+ }
+]
