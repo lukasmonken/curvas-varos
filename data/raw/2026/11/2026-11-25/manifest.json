@@ -1,0 +1,74 @@
+[
+ {
+  "file": "anbima_ettj.csv",
+  "source": "anbima_ettj",
+  "url": "https://www.anbima.com.br/informacoes/est-termo/CZ-down.asp",
+  "requested_date": "2026-11-25",
+  "source_date": "2026-11-25",
+  "publication_date": null,
+  "retrieved_at": "2026-11-26T08:52:27+00:00",
+  "sha256": "1b671fdb30ed848421137f3e7094e5e3e12bfc543157e5b49f011f626358c9b0",
+  "bytes": 2935,
+  "duplicate": false
+ },
+ {
+  "file": "bcb_sgs_12.json",
+  "source": "bcb_sgs_12",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2026&dataFinal=25%2F11%2F2026",
+  "requested_date": "2026-11-25",
+  "source_date": "2026-11-24",
+  "publication_date": null,
+  "retrieved_at": "2026-11-26T08:52:28+00:00",
+  "sha256": "0af7462a6f06186a8bf95d42d4f5cdf37860ccc2cfb05b1fe41858bf3c802a49",
+  "bytes": 9144,
+  "duplicate": false
+ },
+ {
+  "file": "bcb_sgs_433.json",
+  "source": "bcb_sgs_433",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
+  "requested_date": "2026-11-25",
+  "source_date": "2026-10-01",
+  "publication_date": null,
+  "retrieved_at": "2026-11-26T08:52:29+00:00",
+  "sha256": "a72510989195867d1cd67db42c9b777cc892d8eadb3caa194ce44ffbe6119df7",
+  "bytes": 817,
+  "duplicate": false
+ },
+ {
+  "file": "bcb_sgs_4390.json",
+  "source": "bcb_sgs_4390",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4390/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
+  "requested_date": "2026-11-25",
+  "source_date": "2026-11-01",
+  "publication_date": null,
+  "retrieved_at": "2026-11-26T08:52:29+00:00",
+  "sha256": "3626061857646dc6662408b7bdde8c8927451782bc5e3b39b650ea3ef449844a",
+  "bytes": 852,
+  "duplicate": false
+ },
+ {
+  "file": "bcb_sgs_7478.json",
+  "source": "bcb_sgs_7478",
+  "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.7478/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2026",
+  "requested_date": "2026-11-25",
+  "source_date": "2026-10-01",
+  "publication_date": null,
+  "retrieved_at": "2026-11-26T08:52:30+00:00",
+  "sha256": "3f3c8d52c584f05a42ba0a598f9f2fb0657ab1cc074bf48c4358e742e18ece6c",
+  "bytes": 817,
+  "duplicate": false
+ },
+ {
+  "file": "ibge_calendario.json",
+  "source": "ibge_calendario",
+  "url": "https://servicodados.ibge.gov.br/api/v3/calendario/?de=01-01-2025&ate=12-31-2027&qtd=1000",
+  "requested_date": "2026-11-25",
+  "source_date": null,
+  "publication_date": null,
+  "retrieved_at": "2026-11-26T08:52:31+00:00",
+  "sha256": "de75c7229ba75f376ff2ca326f92e831415fe272a6e3bfa9890142d0ee234b43",
+  "bytes": 678469,
+  "duplicate": false
+ }
+]
